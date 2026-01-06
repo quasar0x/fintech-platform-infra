@@ -8,7 +8,7 @@ spec:
 
   # Only allow manifests/charts from this Git repo
   sourceRepos:
-    - REPO_URL
+    - https://github.com/quasar0x/fintech-platform-infra.git
 
   # Only allow deployments to these namespaces in this cluster
   destinations:
