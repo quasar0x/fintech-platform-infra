@@ -1,0 +1,12 @@
+# Terraform
+**/.terraform/*
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+**/crash.*.log
+*.tfplan
+
+# Sensitive vars
+*.tfvars
+!example.tfvars
