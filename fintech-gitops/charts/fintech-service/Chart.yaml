@@ -1,0 +1,6 @@
+apiVersion: v2
+name: fintech-service
+description: Reusable Helm chart for fintech Go microservices (EKS + ArgoCD)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

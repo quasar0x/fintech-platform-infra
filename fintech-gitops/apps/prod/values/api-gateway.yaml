@@ -1,0 +1,30 @@
+nameOverride: api-gateway
+
+replicaCount: 2
+
+image:
+  repository: traefik/whoami
+  tag: v1.10.1
+  pullPolicy: IfNotPresent
+
+service:
+  port: 80
+  targetPort: 80
+
+containerPort: 80
+
+env:
+  APP_NAME: "api-gateway"
+  ENVIRONMENT: "prod"
+
+readinessProbe:
+  enabled: true
+  path: /
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+livenessProbe:
+  enabled: true
+  path: /
+  initialDelaySeconds: 10
+  periodSeconds: 10
