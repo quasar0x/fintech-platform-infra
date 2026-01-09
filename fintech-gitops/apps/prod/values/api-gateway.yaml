@@ -3,9 +3,8 @@ nameOverride: api-gateway
 replicaCount: 2
 
 image:
-  repository: nginxinc/nginx-unprivileged
-  tag: "1.27"
-  pullPolicy: IfNotPresent
+  repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/api-gateway
+  tag: "v0.1.0"
 
 service:
   port: 80
