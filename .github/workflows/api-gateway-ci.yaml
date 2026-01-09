@@ -1,0 +1,52 @@
+name: api-gateway-ci
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "services/api-gateway/**"
+
+permissions:
+    contents: read
+    id-token: write # for AWS OIDC
+    packages: read
+
+env:
+    AWS_REGION: us-east-1
+    AWS_ACCOUNT_ID: 461508717137
+    ECR_REPOSITORY: api-gateway
+    IMAGE_NAME: api-gateway
+
+jobs:
+    build-and-push:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Configure AWS credentials (OIDC)
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: arn:aws:iam::461508717137:role/github-actions-ecr-push
+                  aws-region: ${{ env.AWS_REGION }}
+
+            - name: Login to Amazon ECR
+              uses: aws-actions/amazon-ecr-login@v2
+
+            - name: Set image tag
+              id: vars
+              run: |
+                  echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+
+            - name: Build Docker image
+              run: |
+                  docker build \
+                    -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ steps.vars.outputs.IMAGE_TAG }} \
+                    services/api-gateway
+
+            - name: Push Docker image
+              run: |
+                  docker push \
+                    $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ steps.vars.outputs.IMAGE_TAG }}
