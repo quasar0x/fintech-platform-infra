@@ -1,29 +1,32 @@
-name: api-gateway-ci
+name: api-gateway (build & push to ECR)
 
 on:
     push:
-        branches:
-            - main
+        branches: ["main", "develop"]
+        paths:
+            - "services/api-gateway/**"
+            - ".github/workflows/api-gateway-ci.yaml"
+    pull_request:
         paths:
             - "services/api-gateway/**"
 
 permissions:
+    id-token: write # required for OIDC
     contents: read
-    id-token: write # for AWS OIDC
-    packages: read
 
 env:
     AWS_REGION: us-east-1
-    AWS_ACCOUNT_ID: 461508717137
+    AWS_ACCOUNT_ID: "461508717137"
     ECR_REPOSITORY: api-gateway
-    IMAGE_NAME: api-gateway
+    SERVICE_DIR: services/api-gateway
 
 jobs:
     build-and-push:
+        if: github.event_name == 'push'
         runs-on: ubuntu-latest
 
         steps:
-            - name: Checkout code
+            - name: Checkout
               uses: actions/checkout@v4
 
             - name: Configure AWS credentials (OIDC)
@@ -35,18 +38,44 @@ jobs:
             - name: Login to Amazon ECR
               uses: aws-actions/amazon-ecr-login@v2
 
-            - name: Set image tag
-              id: vars
+            - name: Set image tags
+              id: meta
               run: |
-                  echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+                  SHA_TAG="sha-${GITHUB_SHA::7}"
+                  echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
 
-            - name: Build Docker image
-              run: |
-                  docker build \
-                    -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ steps.vars.outputs.IMAGE_TAG }} \
-                    services/api-gateway
+                  if [ "${GITHUB_REF_NAME}" = "main" ]; then
+                    echo "branch_tag=main-latest" >> "$GITHUB_OUTPUT"
+                  elif [ "${GITHUB_REF_NAME}" = "develop" ]; then
+                    echo "branch_tag=develop-latest" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "branch_tag=" >> "$GITHUB_OUTPUT"
+                  fi
 
-            - name: Push Docker image
+            - name: Build and push
+              env:
+                  REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+                  SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
+                  BRANCH_TAG: ${{ steps.meta.outputs.branch_tag }}
               run: |
-                  docker push \
-                    $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ steps.vars.outputs.IMAGE_TAG }}
+                  IMAGE="$REGISTRY/${{ env.ECR_REPOSITORY }}"
+
+                  docker build -t "$IMAGE:$SHA_TAG" "${{ env.SERVICE_DIR }}"
+                  docker push "$IMAGE:$SHA_TAG"
+
+                  if [ -n "$BRANCH_TAG" ]; then
+                    docker tag "$IMAGE:$SHA_TAG" "$IMAGE:$BRANCH_TAG"
+                    docker push "$IMAGE:$BRANCH_TAG"
+                  fi
+
+    pr-build-only:
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Build only (no push on PR)
+              run: |
+                  docker build "${{ env.SERVICE_DIR }}"
