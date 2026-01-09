@@ -1,0 +1,10 @@
+.git
+.gitignore
+**/.DS_Store
+**/bin
+**/dist
+**/tmp
+**/*.log
+Dockerfile
+docker-compose.yml
+README.md
