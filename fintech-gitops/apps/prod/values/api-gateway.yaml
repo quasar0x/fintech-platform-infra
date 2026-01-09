@@ -4,7 +4,8 @@ replicaCount: 2
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/api-gateway
-  tag: "v0.1.0"
+  tag: develop-latest
+  pullPolicy: IfNotPresent
 
 service:
   port: 80
