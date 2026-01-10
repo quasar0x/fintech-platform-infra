@@ -16,6 +16,8 @@ containerPort: 8080
 env:
   APP_NAME: "api-gateway"
   ENVIRONMENT: "prod"
+  JWT_ISSUER: "fintech-auth"
+  JWT_AUDIENCE: "fintech-platform"
 
 # ✅ Pull JWT_PUBLIC_KEY, JWT_ISSUER, JWT_AUDIENCE from a Secret
 envFrom:
