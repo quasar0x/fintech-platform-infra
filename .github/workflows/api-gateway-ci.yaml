@@ -38,40 +38,31 @@ jobs:
             - name: Login to Amazon ECR
               uses: aws-actions/amazon-ecr-login@v2
 
-            - name: Set image tags
+            - name: Set image tag
               id: meta
               run: |
                   SHA_TAG="sha-${GITHUB_SHA::7}"
                   echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
 
-                  if [ "${GITHUB_REF_NAME}" = "main" ]; then
-                    echo "branch_tag=main-latest" >> "$GITHUB_OUTPUT"
-                  elif [ "${GITHUB_REF_NAME}" = "develop" ]; then
-                    echo "branch_tag=develop-latest" >> "$GITHUB_OUTPUT"
-                  else
-                    echo "branch_tag=" >> "$GITHUB_OUTPUT"
-                  fi
-
-            - name: Build and push
+            - name: Build and push (SHA only)
               env:
                   REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
                   SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
-                  BRANCH_TAG: ${{ steps.meta.outputs.branch_tag }}
               run: |
                   IMAGE="$REGISTRY/${{ env.ECR_REPOSITORY }}"
 
-                  docker build \
-                    --label org.opencontainers.image.revision="${GITHUB_SHA}" \
-                    --label org.opencontainers.image.source="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
-                    -t "$IMAGE:$SHA_TAG" \
-                    "${{ env.SERVICE_DIR }}"
+                    docker build \
+                      --label org.opencontainers.image.revision="${GITHUB_SHA}" \
+                      --label org.opencontainers.image.source="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+                      -t "$IMAGE:$SHA_TAG" \
+                      "${{ env.SERVICE_DIR }}"
 
-                  docker push "$IMAGE:$SHA_TAG"
+                    docker push "$IMAGE:$SHA_TAG"
 
-                  if [ -n "$BRANCH_TAG" ]; then
-                    docker tag "$IMAGE:$SHA_TAG" "$IMAGE:$BRANCH_TAG"
-                    docker push "$IMAGE:$BRANCH_TAG"
-                  fi
+                    if [ -n "$BRANCH_TAG" ]; then
+                      docker tag "$IMAGE:$SHA_TAG" "$IMAGE:$BRANCH_TAG"
+                      docker push "$IMAGE:$BRANCH_TAG"
+                    fi
 
     pr-build-only:
         if: github.event_name == 'pull_request'
