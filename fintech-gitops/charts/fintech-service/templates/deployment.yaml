@@ -68,11 +68,11 @@ spec:
             {{- end }}
 
             {{- if and .Values.secrets.enabled .Values.secrets.data }}
-            {{- range $k, $v := .Values.secrets.data }}
+            {{- range $k, $_ := .Values.secrets.data }}
             - name: {{ $k }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "fintech-service.fullname" . }}-secret
+                  name: {{ include "fintech-service.fullname" $ }}-secret
                   key: {{ $k }}
             {{- end }}
             {{- end }}
@@ -81,6 +81,7 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
 
+          {{- if or .Values.envFrom .Values.extraEnvFrom .Values.config.data }}
           envFrom:
             {{- if .Values.config.data }}
             - configMapRef:
