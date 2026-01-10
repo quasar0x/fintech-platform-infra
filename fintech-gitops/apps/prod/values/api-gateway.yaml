@@ -17,14 +17,20 @@ env:
   APP_NAME: "api-gateway"
   ENVIRONMENT: "prod"
 
+# ✅ Pull JWT_PUBLIC_KEY, JWT_ISSUER, JWT_AUDIENCE from a Secret
+envFrom:
+  - secretRef:
+      name: api-gateway-jwt
+
+# ✅ Your Go app has /readyz and /healthz (not "/")
 readinessProbe:
   enabled: true
-  path: /
+  path: /readyz
   initialDelaySeconds: 5
   periodSeconds: 10
 
 livenessProbe:
   enabled: true
-  path: /
+  path: /healthz
   initialDelaySeconds: 10
   periodSeconds: 10
