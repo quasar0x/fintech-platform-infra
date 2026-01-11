@@ -7,7 +7,7 @@ on:
                 description: "ECR tag to promote (example: sha-24482af)"
                 required: true
             environment:
-                description: "Environment folder (example: prod)"
+                description: "Environment folder under fintech-gitops/apps (example: prod)"
                 required: true
                 default: "prod"
 
@@ -26,12 +26,15 @@ jobs:
                   ref: main
 
             - name: Update image tag in values
+              shell: bash
               run: |
                   set -euo pipefail
 
-                  ENV_DIR="${{ inputs.environment }}"
-                  VALUES_FILE="${ENV_DIR}/values/api-gateway.yaml"
+                  ENV="${{ inputs.environment }}"
                   TAG="${{ inputs.image_tag }}"
+
+                  # ✅ Correct path based on your repo tree
+                  VALUES_FILE="fintech-gitops/apps/${ENV}/values/api-gateway.yaml"
 
                   # Safety: ensure user passes sha-xxxxxxx
                   if [[ "$TAG" != sha-* ]]; then
@@ -43,10 +46,12 @@ jobs:
                     echo "ERROR: values file not found: $VALUES_FILE"
                     echo "Repo root:"
                     ls -la
-                    echo "Env dir:"
-                    ls -la "$ENV_DIR" || true
-                    echo "Env values dir:"
-                    ls -la "${ENV_DIR}/values" || true
+                    echo "fintech-gitops/apps:"
+                    ls -la fintech-gitops/apps || true
+                    echo "fintech-gitops/apps/${ENV}:"
+                    ls -la "fintech-gitops/apps/${ENV}" || true
+                    echo "fintech-gitops/apps/${ENV}/values:"
+                    ls -la "fintech-gitops/apps/${ENV}/values" || true
                     exit 1
                   fi
 
@@ -69,7 +74,7 @@ jobs:
                   commit-message: "promote(api-gateway): ${{ inputs.image_tag }}"
                   body: |
                       This PR promotes api-gateway to `${{ inputs.image_tag }}` by updating:
-                      - `${{ inputs.environment }}/values/api-gateway.yaml`
+                      - `fintech-gitops/apps/${{ inputs.environment }}/values/api-gateway.yaml`
 
                       After merge, ArgoCD will sync from `main`.
                   labels: |
