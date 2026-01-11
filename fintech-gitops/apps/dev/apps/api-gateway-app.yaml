@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: api-gateway-dev
+  namespace: argocd
+spec:
+  project: fintech
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fintech-dev
+  source:
+    repoURL: https://github.com/quasar0x/fintech-platform-infra.git
+    targetRevision: develop
+    path: fintech-gitops/charts/fintech-service
+    helm:
+      valueFiles:
+        - ../../apps/dev/values/api-gateway.yaml
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

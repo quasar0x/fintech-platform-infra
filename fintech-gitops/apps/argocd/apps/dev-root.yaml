@@ -1,15 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: fintech-root
+  name: fintech-dev-root
   namespace: argocd
 spec:
   project: fintech
 
   source:
     repoURL: https://github.com/quasar0x/fintech-platform-infra.git
-    targetRevision: main
-    path: fintech-gitops/apps/argocd/apps
+    targetRevision: develop
+    path: fintech-gitops/apps/dev/apps
     directory:
       recurse: true
 
