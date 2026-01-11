@@ -13,6 +13,7 @@ spec:
     helm:
       valueFiles:
         - ../../apps/prod/values/api-gateway.yaml
+        - ../../apps/prod/values/api-gateway.secrets.yaml
 
   destination:
     server: https://kubernetes.default.svc
