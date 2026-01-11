@@ -10,7 +10,3 @@
 # Sensitive vars
 *.tfvars
 !example.tfvars
-
-# JWT keys
-**/jwt_private.pem
-**/jwt_public.pem
