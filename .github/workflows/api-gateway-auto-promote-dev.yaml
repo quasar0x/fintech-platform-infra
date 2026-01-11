@@ -1,48 +1,58 @@
 name: Auto-promote api-gateway to dev (GitOps)
 
 on:
-    workflow_run:
-        workflows: ["api-gateway (build & push to ECR)"]
-        types: [completed]
+  workflow_run:
+    workflows: ["api-gateway (build & push to ECR)"]
+    types: [completed]
+    branches: [develop]
 
 permissions:
-    contents: write
+  contents: write
 
 jobs:
-    promote-dev:
-        if: >
-            github.event.workflow_run.conclusion == 'success' &&
-            github.event.workflow_run.head_branch == 'develop'
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout develop
-              uses: actions/checkout@v4
-              with:
-                  ref: develop
+  promote-dev:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
 
-            - name: Update dev values image tag (sha-<short>)
-              run: |
-                  set -euo pipefail
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
 
-                  SHORT_SHA="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
-                  TAG="sha-${SHORT_SHA}"
-                  VALUES_FILE="fintech-gitops/apps/dev/values/api-gateway.yaml"
+      - name: Update dev values image tag (sha-<short>)
+        shell: bash
+        run: |
+          set -euo pipefail
 
-                  if [ ! -f "$VALUES_FILE" ]; then
-                    echo "ERROR: values file not found: $VALUES_FILE"
-                    exit 1
-                  fi
+          SHORT_SHA="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
+          TAG="sha-${SHORT_SHA}"
+          VALUES_FILE="fintech-gitops/apps/dev/values/api-gateway.yaml"
 
-                  echo "Promoting to DEV tag: $TAG"
-                  sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$VALUES_FILE"
-                  rm -f "${VALUES_FILE}.bak"
+          if [ ! -f "$VALUES_FILE" ]; then
+            echo "ERROR: values file not found: $VALUES_FILE"
+            exit 1
+          fi
 
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Optional safety: skip if this workflow_run was triggered by a bot commit
+          ACTOR="${{ github.event.workflow_run.actor.login }}"
+          if [ "$ACTOR" = "github-actions[bot]" ]; then
+            echo "Skipping auto-promote: workflow was triggered by github-actions[bot]"
+            exit 0
+          fi
 
-                  git add "$VALUES_FILE"
-                  git commit -m "chore(dev): promote api-gateway to ${TAG}" || {
-                    echo "No change to commit."
-                    exit 0
-                  }
-                  git push origin develop
+          echo "Promoting to DEV tag: $TAG"
+          sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$VALUES_FILE"
+          rm -f "${VALUES_FILE}.bak"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add "$VALUES_FILE"
+          git commit -m "chore(dev): promote api-gateway to ${TAG}" || {
+            echo "No change to commit."
+            exit 0
+          }
+
+          git push origin develop
