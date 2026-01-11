@@ -44,12 +44,22 @@ jobs:
                   SHA_TAG="sha-${GITHUB_SHA::7}"
                   echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
 
-            - name: Build and push (SHA only)
+            - name: Build and push (SHA only) - skip if exists
               env:
                   REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
                   SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
               run: |
+                  set -euo pipefail
                   IMAGE="$REGISTRY/${{ env.ECR_REPOSITORY }}"
+
+                  echo "Checking if tag already exists in ECR: $SHA_TAG"
+                  if aws ecr describe-images \
+                    --region "${{ env.AWS_REGION }}" \
+                    --repository-name "${{ env.ECR_REPOSITORY }}" \
+                    --image-ids imageTag="$SHA_TAG" >/dev/null 2>&1; then
+                    echo "Tag $SHA_TAG already exists. Skipping build/push (ECR tags are immutable)."
+                    exit 0
+                  fi
 
                   docker build \
                     --label org.opencontainers.image.revision="${GITHUB_SHA}" \
@@ -58,6 +68,8 @@ jobs:
                     "${{ env.SERVICE_DIR }}"
 
                   docker push "$IMAGE:$SHA_TAG"
+
+                  echo "Pushed: $IMAGE:$SHA_TAG"
 
     pr-build-only:
         if: github.event_name == 'pull_request'
