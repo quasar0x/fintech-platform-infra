@@ -68,6 +68,9 @@ jobs:
             - name: Create PR
               uses: peter-evans/create-pull-request@v6
               with:
+                  # ✅ Improvement 2: explicitly use GITHUB_TOKEN (works with your repo Actions permissions)
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
                   base: main
                   branch: "promote/api-gateway-${{ inputs.image_tag }}"
                   title: "Promote api-gateway to ${{ inputs.image_tag }}"
@@ -80,3 +83,6 @@ jobs:
                   labels: |
                       gitops
                       promote
+
+                  # ✅ Improvement 1: avoid branch collisions / stale promote branches
+                  delete-branch: true
