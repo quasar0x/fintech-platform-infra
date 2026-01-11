@@ -20,6 +20,11 @@ env:
     ECR_REPOSITORY: api-gateway
     SERVICE_DIR: services/api-gateway
 
+# Prevent two runs from pushing the same SHA tag at the same time
+concurrency:
+    group: api-gateway-ecr-${{ github.ref }}
+    cancel-in-progress: false
+
 jobs:
     build-and-push:
         if: github.event_name == 'push'
@@ -44,13 +49,16 @@ jobs:
                   SHA_TAG="sha-${GITHUB_SHA::7}"
                   echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
 
-            - name: Build and push (SHA only) - skip if exists
+            - name: Build and push (SHA only) - skip if exists / ignore immutable tag conflict
               env:
                   REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
                   SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
+              shell: bash
               run: |
                   set -euo pipefail
                   IMAGE="$REGISTRY/${{ env.ECR_REPOSITORY }}"
+
+                  echo "Target image: $IMAGE:$SHA_TAG"
 
                   echo "Checking if tag already exists in ECR: $SHA_TAG"
                   if aws ecr describe-images \
@@ -61,15 +69,34 @@ jobs:
                     exit 0
                   fi
 
+                  echo "Tag not found. Building..."
                   docker build \
                     --label org.opencontainers.image.revision="${GITHUB_SHA}" \
                     --label org.opencontainers.image.source="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
                     -t "$IMAGE:$SHA_TAG" \
                     "${{ env.SERVICE_DIR }}"
 
-                  docker push "$IMAGE:$SHA_TAG"
+                  echo "Pushing..."
+                  set +e
+                  PUSH_OUTPUT="$(docker push "$IMAGE:$SHA_TAG" 2>&1)"
+                  PUSH_RC=$?
+                  set -e
 
-                  echo "Pushed: $IMAGE:$SHA_TAG"
+                  if [ $PUSH_RC -eq 0 ]; then
+                    echo "Pushed: $IMAGE:$SHA_TAG"
+                    exit 0
+                  fi
+
+                  echo "$PUSH_OUTPUT"
+
+                  # If another run pushed it first (or we re-ran), treat immutable-tag conflict as success
+                  if echo "$PUSH_OUTPUT" | grep -qi "tag invalid:.*already exists.*tag is immutable"; then
+                    echo "Tag $SHA_TAG already exists (immutable). Treating as success."
+                    exit 0
+                  fi
+
+                  echo "Push failed for a different reason."
+                  exit $PUSH_RC
 
     pr-build-only:
         if: github.event_name == 'pull_request'
