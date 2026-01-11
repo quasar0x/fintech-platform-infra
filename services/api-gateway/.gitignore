@@ -1,4 +1,3 @@
-jwt_private.pem
-jwt_public.pem
+# JWT keys
 jwt_private.pem
 jwt_public.pem
