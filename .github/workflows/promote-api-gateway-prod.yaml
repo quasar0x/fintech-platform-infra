@@ -1,0 +1,58 @@
+name: Promote api-gateway to prod (GitOps)
+
+on:
+    workflow_dispatch:
+        inputs:
+            image_tag:
+                description: "ECR tag to promote (example: sha-24482af)"
+                required: true
+            environment:
+                description: "Environment folder"
+                required: true
+                default: "prod"
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    promote:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout main
+              uses: actions/checkout@v4
+              with:
+                  ref: main
+
+            - name: Update image tag in values
+              run: |
+                  set -euo pipefail
+
+                  VALUES_FILE="${{ inputs.environment }}/values/api-gateway.yaml"
+                  TAG="${{ inputs.image_tag }}"
+
+                  if [ ! -f "$VALUES_FILE" ]; then
+                    echo "ERROR: values file not found: $VALUES_FILE"
+                    exit 1
+                  fi
+
+                  # Replace only the line that starts with "tag:"
+                  # Keeps YAML structure intact.
+                  sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$VALUES_FILE"
+                  rm -f "${VALUES_FILE}.bak"
+
+                  echo "Updated $VALUES_FILE to tag=$TAG"
+                  grep -nE "^[[:space:]]*tag:" "$VALUES_FILE"
+
+            - name: Create PR
+              uses: peter-evans/create-pull-request@v6
+              with:
+                  branch: "promote/api-gateway-${{ inputs.image_tag }}"
+                  title: "Promote api-gateway to ${{ inputs.image_tag }}"
+                  commit-message: "promote(api-gateway): ${{ inputs.image_tag }}"
+                  body: |
+                      This PR promotes api-gateway to `${{ inputs.image_tag }}` by updating:
+                      - `${{ inputs.environment }}/values/api-gateway.yaml`
+
+                      After merge, ArgoCD will sync from `main`.
