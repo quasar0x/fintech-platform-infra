@@ -4,25 +4,31 @@ metadata:
   name: fintech
   namespace: argocd
 spec:
-  description: Fintech platform GitOps project (prod)
+  description: Fintech GitOps project (dev + prod)
 
-  # Only allow manifests/charts from this Git repo
+  # Git repos ArgoCD apps are allowed to pull from
   sourceRepos:
     - https://github.com/quasar0x/fintech-platform-infra.git
 
-  # Only allow deployments to these namespaces in this cluster
+  # Clusters/namespaces apps are allowed to deploy into
   destinations:
-    - namespace: argocd
-      server: https://kubernetes.default.svc
-    - namespace: fintech-prod
-      server: https://kubernetes.default.svc
+    # prod
+    - server: https://kubernetes.default.svc
+      namespace: fintech-prod
 
-  # Allow Argo to create namespaces (cluster-scoped)
+    # dev
+    - server: https://kubernetes.default.svc
+      namespace: fintech-dev
+
+    # Argo itself (root apps live here)
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+
+  # Allow deploying any namespaced resources (safe default for internal projects)
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+    - group: "*"
+      kind: "*"
 
-  # Allow all namespace-scoped resources inside allowed namespaces
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
