@@ -4,7 +4,7 @@ replicaCount: 2
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/api-gateway
-  tag: sha-617a5c8
+  tag: sha-b43d50e
   pullPolicy: IfNotPresent
 
 service:
