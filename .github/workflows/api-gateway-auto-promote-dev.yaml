@@ -4,30 +4,65 @@ on:
   workflow_run:
     workflows: ["api-gateway (build & push to ECR)"]
     types: [completed]
-    branches: [develop]
 
 permissions:
   contents: write
+  id-token: write
+
+concurrency:
+  group: api-gateway-auto-promote-dev
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "461508717137"
+  ECR_REPOSITORY: api-gateway
 
 jobs:
   promote-dev:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'develop'
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout develop
         uses: actions/checkout@v4
         with:
           ref: develop
-          fetch-depth: 0
 
-      - name: Update dev values image tag (sha-<short>)
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::461508717137:role/github-actions-ecr-push
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Compute tag from workflow SHA
+        id: tag
         shell: bash
         run: |
           set -euo pipefail
-
           SHORT_SHA="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
-          TAG="sha-${SHORT_SHA}"
+          echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify image tag exists in ECR
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          echo "Checking ECR for tag: $TAG"
+
+          aws ecr describe-images \
+            --region "${{ env.AWS_REGION }}" \
+            --repository-name "${{ env.ECR_REPOSITORY }}" \
+            --image-ids imageTag="$TAG" >/dev/null
+
+          echo "✅ Tag exists in ECR: $TAG"
+
+      - name: Update dev values image tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
           VALUES_FILE="fintech-gitops/apps/dev/values/api-gateway.yaml"
 
           if [ ! -f "$VALUES_FILE" ]; then
@@ -35,16 +70,21 @@ jobs:
             exit 1
           fi
 
-          # Optional safety: skip if this workflow_run was triggered by a bot commit
-          ACTOR="${{ github.event.workflow_run.actor.login }}"
-          if [ "$ACTOR" = "github-actions[bot]" ]; then
-            echo "Skipping auto-promote: workflow was triggered by github-actions[bot]"
-            exit 0
-          fi
+          echo "Before:"
+          grep -nE "^[[:space:]]*tag:" "$VALUES_FILE" || true
 
-          echo "Promoting to DEV tag: $TAG"
           sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$VALUES_FILE"
           rm -f "${VALUES_FILE}.bak"
+
+          echo "After:"
+          grep -nE "^[[:space:]]*tag:" "$VALUES_FILE"
+
+      - name: Commit and push to develop
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          VALUES_FILE="fintech-gitops/apps/dev/values/api-gateway.yaml"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -54,5 +94,4 @@ jobs:
             echo "No change to commit."
             exit 0
           }
-
           git push origin develop
