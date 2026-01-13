@@ -32,7 +32,7 @@ env:
 secrets:
   enabled: true
   data:
-    DB_PASSWORD: "{kJ:+}t4+7%[2$VElmvgsm32%"
+    DB_PASSWORD: "AuthDb#2026-StrongPass!"
 
     JWT_PRIVATE_KEY: |-
       -----BEGIN PRIVATE KEY-----

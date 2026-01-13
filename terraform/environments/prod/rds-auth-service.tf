@@ -55,7 +55,7 @@ resource "aws_db_instance" "auth" {
   allocated_storage   = 20
   storage_type        = "gp3"
   multi_az            = false
-  publicly_accessible = false
+  publicly_accessible = true
   deletion_protection = false
   skip_final_snapshot = true
   apply_immediately   = true
