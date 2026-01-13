@@ -25,7 +25,7 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "ecr_repository_name" {
-  type        = string
-  description = "ECR repository name to allow push to (least privilege)"
+variable "ecr_repository_names" {
+  type        = list(string)
+  description = "ECR repositories this role can push to"
 }

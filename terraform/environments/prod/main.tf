@@ -22,12 +22,18 @@ module "eks" {
 }
 
 module "github_actions_ecr" {
-  source              = "../../modules/iam_github_actions_ecr"
-  github_org          = "quasar0x"
-  github_repo         = "fintech-platform-infra"
-  aws_account_id      = "461508717137"
-  aws_region          = var.region
-  ecr_repository_name = "api-gateway"
-  role_name           = "github-actions-ecr-push"
+  source         = "../../modules/iam_github_actions_ecr"
+  github_org     = "quasar0x"
+  github_repo    = "fintech-platform-infra"
+  aws_account_id = "461508717137"
+  aws_region     = var.region
+  role_name      = "github-actions-ecr-push"
+
+  # allow pushing to both images
+  ecr_repository_names = [
+    "api-gateway",
+    "auth-service"
+  ]
 }
+
 
