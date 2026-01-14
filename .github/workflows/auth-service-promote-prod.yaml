@@ -55,6 +55,7 @@ jobs:
             - name: Create PR
               uses: peter-evans/create-pull-request@v6
               with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
                   base: main
                   branch: "promote/auth-service-${{ inputs.image_tag }}"
                   title: "Promote auth-service to ${{ inputs.image_tag }}"
@@ -67,3 +68,4 @@ jobs:
                   labels: |
                       gitops
                       promote
+                  delete-branch: true
