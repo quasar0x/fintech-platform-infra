@@ -32,7 +32,8 @@ module "github_actions_ecr" {
   # allow pushing to both images
   ecr_repository_names = [
     "api-gateway",
-    "auth-service"
+    "auth-service",
+    "user-service"
   ]
 }
 
