@@ -1,0 +1,41 @@
+nameOverride: user-service
+replicaCount: 2
+
+image:
+  repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/user-service
+  tag: sha-REPLACE_ME
+  pullPolicy: IfNotPresent
+
+service:
+  port: 80
+  targetPort: 8082
+
+containerPort: 8082
+
+env:
+  APP_NAME: "user-service"
+  ENVIRONMENT: "dev"
+  PORT: "8082"
+
+  DB_HOST: "fintech-platform-user-db.caley62smz6e.us-east-1.rds.amazonaws.com"
+  DB_PORT: "5432"
+  DB_NAME: "user_service"
+  DB_USER: "useradmin"
+  DB_SSLMODE: "require"
+
+secrets:
+  enabled: true
+  data:
+    DB_PASSWORD: "F3gp(FxpLG(pn.^~~U%#+D_2%"
+
+readinessProbe:
+  enabled: true
+  path: /readyz
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+livenessProbe:
+  enabled: true
+  path: /healthz
+  initialDelaySeconds: 10
+  periodSeconds: 10
