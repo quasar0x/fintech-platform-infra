@@ -14,7 +14,7 @@ containerPort: 8082
 
 env:
   APP_NAME: "user-service"
-  ENVIRONMENT: "dev"
+  ENVIRONMENT: "prod"
   PORT: "8082"
 
   DB_HOST: "fintech-platform-user-db.caley62smz6e.us-east-1.rds.amazonaws.com"
