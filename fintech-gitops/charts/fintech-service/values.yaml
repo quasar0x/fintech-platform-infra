@@ -31,16 +31,19 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+podSecurityContext:
+  fsGroup: 65532
+  runAsUser: 65532
+  runAsGroup: 65532
+
 securityContext:
   runAsNonRoot: true
+  runAsUser: 65532
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: false
   capabilities:
     drop:
       - ALL
-
-podSecurityContext:
-  fsGroup: 2000
 
 env: {}
 envFrom: []
