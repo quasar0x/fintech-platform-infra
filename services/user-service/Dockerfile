@@ -9,7 +9,7 @@ RUN apk add --no-cache ca-certificates git
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source.
+# Copy source
 COPY . .
 
 # Build static binary (good for distroless).
