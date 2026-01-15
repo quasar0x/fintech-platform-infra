@@ -6,7 +6,7 @@ resource "random_password" "user_db_password" {
   override_special = "!#$%&()*+-.:;<=>?[]^_{|}~"
 
   keepers = {
-    rotate = "2026-01-14" # bump this to force a new password
+    rotate = "2026-01-15-01"
   }
 }
 
