@@ -5,7 +5,7 @@ WORKDIR /src
 
 RUN apk add --no-cache ca-certificates git
 
-# Cache deps.
+# Cache deps
 COPY go.mod go.sum ./
 RUN go mod download
 
