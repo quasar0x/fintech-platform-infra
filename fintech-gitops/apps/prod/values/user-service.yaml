@@ -26,7 +26,7 @@ env:
 secrets:
   enabled: true
   data:
-    DB_PASSWORD: "F3gp(FxpLG(pn.^~~U%#+D_2%"
+    DB_PASSWORD: "9:r03RZaO|J=#XrD::);16Fp"
 
 readinessProbe:
   enabled: true
