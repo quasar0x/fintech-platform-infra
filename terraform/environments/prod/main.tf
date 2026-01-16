@@ -33,7 +33,8 @@ module "github_actions_ecr" {
   ecr_repository_names = [
     "api-gateway",
     "auth-service",
-    "user-service"
+    "user-service",
+    "payments-service"
   ]
 }
 
