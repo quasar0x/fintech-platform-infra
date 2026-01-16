@@ -1,0 +1,41 @@
+nameOverride: payments-service
+replicaCount: 2
+
+image:
+  repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/payments-service
+  tag: sha-REPLACE_ME
+  pullPolicy: IfNotPresent
+
+service:
+  port: 80
+  targetPort: 8083
+
+containerPort: 8083
+
+env:
+  APP_NAME: "payments-service"
+  ENVIRONMENT: "dev"
+  PORT: "8083"
+
+  DB_HOST: "fintech-platform-payments-db.caley62smz6e.us-east-1.rds.amazonaws.com"
+  DB_PORT: "5432"
+  DB_NAME: "payments_service"
+  DB_USER: "paymentsadmin"
+  DB_SSLMODE: "require"
+
+secrets:
+  enabled: true
+  data:
+    DB_PASSWORD: "%+uZe+orB=T3gC:UXNd|4{]#%"
+
+readinessProbe:
+  enabled: true
+  path: /readyz
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+livenessProbe:
+  enabled: true
+  path: /healthz
+  initialDelaySeconds: 10
+  periodSeconds: 10
