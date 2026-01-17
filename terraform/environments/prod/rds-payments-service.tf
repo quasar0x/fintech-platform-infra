@@ -4,7 +4,7 @@ resource "random_password" "payments_db_password" {
   override_special = "!#$%&()*+-.:;<=>?[]^_{|}~"
 
   keepers = {
-    rotate = "2026-01-16" # bump when you want rotation
+    rotate = "2026-01-16" # bump when you want rotation.
   }
 }
 
