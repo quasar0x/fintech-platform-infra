@@ -1,0 +1,24 @@
+name: DAST (OWASP ZAP) against dev
+
+on:
+    workflow_dispatch: {}
+    push:
+        branches: ["develop"]
+        paths:
+            - "fintech-gitops/apps/dev/values/**"
+            - "fintech-gitops/charts/**"
+
+permissions:
+    contents: read
+
+jobs:
+    zap-baseline:
+        runs-on: ubuntu-latest
+        steps:
+            - name: ZAP Baseline Scan
+              uses: zaproxy/action-baseline@v0.12.0
+              with:
+                  # You will replace this after you confirm the ingress/ALB URL
+                  target: "https://REPLACE_ME"
+                  fail_action: false
+                  cmd_options: "-a"
