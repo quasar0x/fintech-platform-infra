@@ -24,9 +24,7 @@ env:
   DB_SSLMODE: "require"
 
 secrets:
-  enabled: true
-  data:
-    DB_PASSWORD: "%+uZe+orB=T3gC:UXNd|4{]#"
+  enabled: false
 
 readinessProbe:
   enabled: true
