@@ -24,7 +24,10 @@ env:
   DB_SSLMODE: "require"
 
 secrets:
-  enabled: false
+  enabled:
+  existingSecretName: payments-service-secret
+  keys:
+    - DB_PASSWORD
 
 readinessProbe:
   enabled: true
