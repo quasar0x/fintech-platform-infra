@@ -67,13 +67,24 @@ spec:
               value: {{ $v | quote }}
             {{- end }}
 
-            {{- if and .Values.secrets.enabled .Values.secrets.data }}
+            {{- if .Values.secrets.enabled }}
+            {{- $secretName := default (printf "%s-secret" (include "fintech-service.fullname" $)) .Values.secrets.existingSecretName }}
+            {{- if .Values.secrets.keys }}
+            {{- range $k := .Values.secrets.keys }}
+            - name: {{ $k }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: {{ $k }}
+            {{- end }}
+            {{- else if .Values.secrets.data }}
             {{- range $k, $_ := .Values.secrets.data }}
             - name: {{ $k }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "fintech-service.fullname" $ }}-secret
+                  name: {{ $secretName }}
                   key: {{ $k }}
+            {{- end }}
             {{- end }}
             {{- end }}
 
@@ -94,6 +105,16 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- end }}
+
+          {{- if .Values.secrets.mounts }}
+          volumeMounts:
+            {{- toYaml .Values.secrets.mounts | nindent 12 }}
+          {{- end }}
+
+      {{- if .Values.secrets.volumes }}
+      volumes:
+        {{- toYaml .Values.secrets.volumes | nindent 8 }}
+      {{- end }}
 
       {{- with .Values.nodeSelector }}
       nodeSelector:

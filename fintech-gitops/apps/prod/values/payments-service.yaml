@@ -1,5 +1,5 @@
 nameOverride: payments-service
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/payments-service

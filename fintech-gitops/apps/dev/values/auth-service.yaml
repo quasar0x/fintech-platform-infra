@@ -1,10 +1,10 @@
 nameOverride: auth-service
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/auth-service
-  tag: sha-73e7026
+  tag: sha-1513200
   pullPolicy: IfNotPresent
 
 service:
@@ -19,61 +19,44 @@ env:
   PORT: "8081"
   JWT_ISSUER: "fintech-auth"
   JWT_AUDIENCE: "fintech-platform"
-  ACCESS_TOKEN_TTL_SECONDS: "900" # 15 mins
-  REFRESH_TOKEN_TTL_SECONDS: "604800" # 7 days
-  # --- DB connection (placeholders for now) ---
+  ACCESS_TOKEN_TTL_SECONDS: "900"
+  REFRESH_TOKEN_TTL_SECONDS: "604800"
+
   DB_HOST: "fintech-platform-auth-db.caley62smz6e.us-east-1.rds.amazonaws.com"
   DB_PORT: "5432"
   DB_NAME: "auth"
   DB_USER: "authadmin"
   DB_SSLMODE: "require"
 
-# Secrets managed by Helm Secret template (like api-gateway)
+  JWT_PRIVATE_KEY_PATH: "/var/run/secrets/jwt/jwt_private.pem"
+
+  JWT_PUBLIC_KEY: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAquF0JfwrX/v3OxVdDdjd
+    tQHVAfyuZRgmwXYli2LqbCSN1WA9ESO4os2FOfSmNCsxhM/xoYycQsiwwgi3B/Z5
+    TeWSs14XHVAd36ldxKbiTfAV9/flRPCAGUVVekWG4SK7gwu2Vj1sd1HEVktNDPqs
+    M21hPsndh1n0MOgl/CGDMZaQC7wbVJnouG/gvAgOjjKXJCl2ITl0qTYc/Gabz/8F
+    47TSGcXrVtKRz47ty+67cMf4ZxoOYJvw1i2OlPuO5/JA/hz/pCK02gneJbQihw3Z
+    vWPx4EBCK7KL1M/YRSjD6XRmnmMpfvZBHNTBDJF3oUjhIohxH8P2fAsnzXhVJya3
+    9wIDAQAB
+    -----END PUBLIC KEY-----
+
 secrets:
   enabled: true
-  data:
-    DB_PASSWORD: "AuthDb#2026-StrongPass!"
-
-    JWT_PRIVATE_KEY: |-
-      -----BEGIN PRIVATE KEY-----
-      MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCq4XQl/Ctf+/c7
-      FV0N2N21AdUB/K5lGCbBdiWLYupsJI3VYD0RI7iizYU59KY0KzGEz/GhjJxCyLDC
-      CLcH9nlN5ZKzXhcdUB3fqV3EpuJN8BX39+VE8IAZRVV6RYbhIruDC7ZWPWx3UcRW
-      S00M+qwzbWE+yd2HWfQw6CX8IYMxlpALvBtUmei4b+C8CA6OMpckKXYhOXSpNhz8
-      ZpvP/wXjtNIZxetW0pHPju3L7rtwx/hnGg5gm/DWLY6U+47n8kD+HP+kIrTaCd4l
-      tCKHDdm9Y/HgQEIrsovUz9hFKMPpdGaeYyl+9kEc1MEMkXehSOEiiHEfw/Z8CyfN
-      eFUnJrf3AgMBAAECggEAHZ5hcvoQDJ2QX1HXJMDLwQWVxbfmBIjYotzXKh9VkbQO
-      T4dUXmWqKbHk30RMEKvR8/rVH5LPPPYrSR6Ylw0+PmXF9UggSojp/KwPIDhq7mZo
-      cGgr+bSUB41QgRaPB/Psu4yqqK0R4WavWOPJca/7bBiP7AGyX7UUUevTNa4bXts4
-      kHHmRTklBDywdUhTvyeSN7shToxmU2jwQ0VlZO4nuhnpq/45I/PM6IxnJSwDpLpY
-      AtZpI/ag1nYwvzVa2IMNjn9YJMFaml/RNMhBVRNuMREyG9HQHHScGYCA++URUU5L
-      03WobWULqilC9ItZKAl2ViMERH8JJUaO5ny4O1JiJQKBgQDrJRi0osaYtFjFJcBO
-      5rzDbwht0FMdWgGSQ6BQxwWXKcVVSP0B/wn/jnSj8XdA1wwR4tQmXrrInp+ZafAH
-      g1Sf3Y17ZNJN70yHtSLl9GR0NxvgqzC8QoEWd+baJjJfFknjhsyAjWKmK5/JbZSw
-      AYPT7992+UtV2r8kTQvmRyW7IwKBgQC6CUE0wGtnbChmX8I+V4GDz1SvQptu/Otr
-      VdwPMa9Ud0JNTNORb72k9nePvIj4nhVxUwiBw2/ZfBkGHh5EOhS4bbFoabGGZRcn
-      ZKWEQMsDuo6IsaGatK3KGLaXO/RCZ1bK8Wx/S6ppGUcmv6WVKwpxgRnDAP94OhZ5
-      lyBHQWQ3HQKBgQDOyDCRqRM79lyaAji7Ke2Vb27aIvj0NtJq7U1tu5cO94yxEx5r
-      Qvxn375y7UURoArdL7uggm1/Pv7aym5qLPOeIhbpDCBkqKuEK6Yk0mYETPIXAHQ7
-      GcCrIYXBERX6yH7xtvjfk3XM60/4soSuwqZLGgZJebDmLxcntRlhx+9GQQKBgFDg
-      7SRN82PHNdksEHqh+IChhqObRY//DSpg7Yb9hsgmAQEyQVidR8mMDXbD9JiBwbi+
-      7Jfdq6bVuNtcBLSMu61ioxpNuQxArsxFiV/x+1DnrkfnUea8XkHadKdTPWIRIz6f
-      rxe4gaGnh7Nk5kvvpl6qTdTlfit6tYKvHS1dVIBRAoGAf1Hk16UN2asQCoV72BHV
-      NIKAZkzOIfumSwG5QH91SlQw++v7rnHqk3xtK/JSRpDnzzXRyhTS1yfR182IhGFt
-      L5/TfMdi3HsWNjaxpAwm8R2jc2ctwJVAyky+rL96ku89rBtRufDov2cshCMiRmGG
-      ZvSuMvOIt9UlBgOSSdMgCq4=
-      -----END PRIVATE KEY-----
-
-    JWT_PUBLIC_KEY: |-
-      -----BEGIN PUBLIC KEY-----
-      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAquF0JfwrX/v3OxVdDdjd
-      tQHVAfyuZRgmwXYli2LqbCSN1WA9ESO4os2FOfSmNCsxhM/xoYycQsiwwgi3B/Z5
-      TeWSs14XHVAd36ldxKbiTfAV9/flRPCAGUVVekWG4SK7gwu2Vj1sd1HEVktNDPqs
-      M21hPsndh1n0MOgl/CGDMZaQC7wbVJnouG/gvAgOjjKXJCl2ITl0qTYc/Gabz/8F
-      47TSGcXrVtKRz47ty+67cMf4ZxoOYJvw1i2OlPuO5/JA/hz/pCK02gneJbQihw3Z
-      vWPx4EBCK7KL1M/YRSjD6XRmnmMpfvZBHNTBDJF3oUjhIohxH8P2fAsnzXhVJya3
-      9wIDAQAB
-      -----END PUBLIC KEY-----
+  existingSecretName: auth-service-secret
+  keys:
+    - DB_PASSWORD
+  mounts:
+    - name: auth-jwt-key
+      mountPath: /var/run/secrets/jwt
+      readOnly: true
+  volumes:
+    - name: auth-jwt-key
+      secret:
+        secretName: auth-service-secret
+        items:
+          - key: JWT_PRIVATE_KEY
+            path: jwt_private.pem
 
 readinessProbe:
   enabled: true
