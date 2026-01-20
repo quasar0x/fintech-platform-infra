@@ -1,5 +1,5 @@
 nameOverride: user-service
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/user-service
@@ -25,8 +25,9 @@ env:
 
 secrets:
   enabled: true
-  data:
-    DB_PASSWORD: "9:r03RZaO|J=#XrD::);16Fp"
+  existingSecretName: user-service-secret
+  keys:
+    - DB_PASSWORD
 
 readinessProbe:
   enabled: true
