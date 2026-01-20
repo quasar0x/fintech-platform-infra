@@ -19,8 +19,8 @@ env:
   PORT: "8081"
   JWT_ISSUER: "fintech-auth"
   JWT_AUDIENCE: "fintech-platform"
-  ACCESS_TOKEN_TTL_SECONDS: "900" # 15 mins
-  REFRESH_TOKEN_TTL_SECONDS: "604800" # 7 days
+  ACCESS_TOKEN_TTL_SECONDS: "900"
+  REFRESH_TOKEN_TTL_SECONDS: "604800"
 
   # --- DB connection (use terraform outputs) ---
   DB_HOST: "fintech-platform-auth-db.caley62smz6e.us-east-1.rds.amazonaws.com"
@@ -28,6 +28,21 @@ env:
   DB_NAME: "auth"
   DB_USER: "authadmin"
   DB_SSLMODE: "require"
+
+  # ✅ read private key from mounted file
+  JWT_PRIVATE_KEY_PATH: "/var/run/secrets/jwt/jwt_private.pem"
+
+  # ✅ public key can be plain env (not secret)
+  JWT_PUBLIC_KEY: |-
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAquF0JfwrX/v3OxVdDdjd
+    tQHVAfyuZRgmwXYli2LqbCSN1WA9ESO4os2FOfSmNCsxhM/xoYycQsiwwgi3B/Z5
+    TeWSs14XHVAd36ldxKbiTfAV9/flRPCAGUVVekWG4SK7gwu2Vj1sd1HEVktNDPqs
+    M21hPsndh1n0MOgl/CGDMZaQC7wbVJnouG/gvAgOjjKXJCl2ITl0qTYc/Gabz/8F
+    47TSGcXrVtKRz47ty+67cMf4ZxoOYJvw1i2OlPuO5/JA/hz/pCK02gneJbQihw3Z
+    vWPx4EBCK7KL1M/YRSjD6XRmnmMpfvZBHNTBDJF3oUjhIohxH8P2fAsnzXhVJya3
+    9wIDAQAB
+    -----END PUBLIC KEY-----
 
 secrets:
   enabled: true
@@ -45,19 +60,6 @@ secrets:
         items:
           - key: JWT_PRIVATE_KEY
             path: jwt_private.pem
-
-    JWT_PRIVATE_KEY_PATH: "/var/run/secrets/jwt/jwt_private.pem"
-
-    JWT_PUBLIC_KEY: |-
-      -----BEGIN PUBLIC KEY-----
-      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAquF0JfwrX/v3OxVdDdjd
-      tQHVAfyuZRgmwXYli2LqbCSN1WA9ESO4os2FOfSmNCsxhM/xoYycQsiwwgi3B/Z5
-      TeWSs14XHVAd36ldxKbiTfAV9/flRPCAGUVVekWG4SK7gwu2Vj1sd1HEVktNDPqs
-      M21hPsndh1n0MOgl/CGDMZaQC7wbVJnouG/gvAgOjjKXJCl2ITl0qTYc/Gabz/8F
-      47TSGcXrVtKRz47ty+67cMf4ZxoOYJvw1i2OlPuO5/JA/hz/pCK02gneJbQihw3Z
-      vWPx4EBCK7KL1M/YRSjD6XRmnmMpfvZBHNTBDJF3oUjhIohxH8P2fAsnzXhVJya3
-      9wIDAQAB
-      -----END PUBLIC KEY-----
 
 readinessProbe:
   enabled: true
