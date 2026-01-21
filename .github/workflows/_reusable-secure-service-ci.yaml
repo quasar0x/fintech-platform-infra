@@ -87,7 +87,7 @@ jobs:
                   SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
             - name: Snyk (SCA - deps)
-              if: ${{ inputs.run_snyk && secrets.SNYK_TOKEN != '' }}
+              if: ${{ inputs.run_snyk }}
               uses: snyk/actions/golang@master
               continue-on-error: true
               env:
@@ -145,7 +145,7 @@ jobs:
                   SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
             - name: Snyk (SCA - deps)
-              if: ${{ inputs.run_snyk && secrets.SNYK_TOKEN != '' }}
+              if: ${{ inputs.run_snyk }}
               uses: snyk/actions/golang@master
               continue-on-error: true
               env:
