@@ -1,205 +1,30 @@
-name: payments-service (secure CI: test + scan + build + sign)
-
+name: payments-service (secure CI)
 on:
-  push:
-    branches: ["main", "develop"]
-    paths:
-      - "services/payments-service/**"
-      - ".github/workflows/payments-service-ci.yaml"
-  pull_request:
-    paths:
-      - "services/payments-service/**"
-      - ".github/workflows/payments-service-ci.yaml"
-
+    push:
+        branches: ["main", "develop"]
+        paths:
+            - "services/payments-service/**"
+            - ".github/workflows/payments-service-ci.yaml"
+            - ".github/workflows/_reusable-secure-service-ci.yaml"
+    pull_request:
+        paths:
+            - "services/payments-service/**"
+            - ".github/workflows/payments-service-ci.yaml"
+            - ".github/workflows/_reusable-secure-service-ci.yaml"
 permissions:
-  contents: read
-  id-token: write
-  security-events: write
-
-env:
-  AWS_REGION: us-east-1
-  AWS_ACCOUNT_ID: "461508717137"
-  ECR_REPOSITORY: payments-service
-  SERVICE_DIR: services/payments-service
-
-concurrency:
-  group: payments-service-secure-ci-${{ github.ref }}
-  cancel-in-progress: false
-
+    contents: read
+    id-token: write
+    security-events: write
 jobs:
-  # -------------------------
-  # PR: fast security + build (no push)
-  # -------------------------
-  pr-security:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+    call-secure-ci:
+        uses: ./.github/workflows/_reusable-secure-service-ci.yaml
         with:
-          go-version-file: ${{ env.SERVICE_DIR }}/go.mod
-          cache: true
-
-      - name: Unit tests (placeholder)
-        working-directory: ${{ env.SERVICE_DIR }}
-        run: |
-          set -euo pipefail
-          # When you add tests, this becomes meaningful.
-          go test ./... -count=1
-
-      - name: Semgrep (SAST)
-        uses: returntocorp/semgrep-action@v1
-        with:
-          # "auto" includes community rules; good default for portfolio.
-          config: "p/ci"
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-
-      - name: Snyk (Dependencies - SCA)
-        uses: snyk/actions/golang@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-          args: --file=${{ env.SERVICE_DIR }}/go.mod --severity-threshold=high
-
-      - name: Docker build (PR only)
-        run: |
-          set -euo pipefail
-          docker build "${{ env.SERVICE_DIR }}"
-
-  # -------------------------
-  # Push: full pipeline + push + sign + SBOM
-  # -------------------------
-  build-scan-push-sign:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Compute image tag
-        id: meta
-        run: |
-          set -euo pipefail
-          SHA_TAG="sha-${GITHUB_SHA::7}"
-          echo "sha_tag=$SHA_TAG" >> "$GITHUB_OUTPUT"
-          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: ${{ env.SERVICE_DIR }}/go.mod
-          cache: true
-
-      - name: Unit tests (placeholder)
-        working-directory: ${{ env.SERVICE_DIR }}
-        run: |
-          set -euo pipefail
-          go test ./... -count=1
-
-      - name: Semgrep (SAST)
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: "p/ci"
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-
-      - name: Snyk (Dependencies - SCA)
-        uses: snyk/actions/golang@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-          args: --file=${{ env.SERVICE_DIR }}/go.mod --severity-threshold=high
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::461508717137:role/github-actions-ecr-push
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build image (local)
-        env:
-          REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
-        run: |
-          set -euo pipefail
-          IMAGE="$REGISTRY/${{ env.ECR_REPOSITORY }}"
-          docker build \
-            --label org.opencontainers.image.revision="${GITHUB_SHA}" \
-            --label org.opencontainers.image.source="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
-            -t "$IMAGE:$SHA_TAG" \
-            "${{ env.SERVICE_DIR }}"
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      - name: Trivy scan image (fail on HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          image-ref: "${{ env.IMAGE }}:${{ steps.meta.outputs.sha_tag }}"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: "HIGH,CRITICAL"
-
-      - name: Generate SBOM (CycloneDX)
-        uses: anchore/sbom-action@v0
-        with:
-          image: "${{ env.IMAGE }}:${{ steps.meta.outputs.sha_tag }}"
-          format: "cyclonedx-json"
-          output-file: "sbom-payments-service-${{ steps.meta.outputs.sha_tag }}.cdx.json"
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-payments-service-${{ steps.meta.outputs.sha_tag }}
-          path: sbom-payments-service-${{ steps.meta.outputs.sha_tag }}.cdx.json
-          retention-days: 30
-
-      - name: Push image to ECR (skip if immutable tag exists)
-        env:
-          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
-        run: |
-          set -euo pipefail
-
-          echo "Checking if tag already exists in ECR: $SHA_TAG"
-          if aws ecr describe-images \
-            --region "${{ env.AWS_REGION }}" \
-            --repository-name "${{ env.ECR_REPOSITORY }}" \
-            --image-ids imageTag="$SHA_TAG" >/dev/null 2>&1; then
-            echo "Tag $SHA_TAG already exists. Skipping push (ECR tags are immutable)."
-            exit 0
-          fi
-
-          docker push "${{ env.IMAGE }}:$SHA_TAG"
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3.6.0
-
-      - name: Cosign sign (keyless OIDC)
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
-        run: |
-          set -euo pipefail
-          cosign sign --yes "${{ env.IMAGE }}:$SHA_TAG"
-
-      - name: Cosign verify (optional sanity check)
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-          SHA_TAG: ${{ steps.meta.outputs.sha_tag }}
-        run: |
-          set -euo pipefail
-          cosign verify \
-            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/payments-service-ci.yaml@refs/heads/${{ github.ref_name }}" \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            "${{ env.IMAGE }}:$SHA_TAG" || true
+            service_name: payments-service
+            service_dir: services/payments-service
+            ecr_repository: payments-service
+            aws_region: us-east-1
+            aws_account_id: "461508717137"
+            role_to_assume: arn:aws:iam::461508717137:role/github-actions-ecr-push
+        secrets:
+            SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+            SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
