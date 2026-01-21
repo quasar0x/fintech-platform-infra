@@ -1,12 +1,12 @@
 name: DAST (OWASP ZAP) against dev
 
 on:
-    workflow_dispatch: {}
-    push:
-        branches: ["develop"]
-        paths:
-            - "fintech-gitops/apps/dev/values/**"
-            - "fintech-gitops/charts/**"
+    workflow_dispatch:
+        inputs:
+            target:
+                description: "Full URL to scan (e.g. https://dev-api.example.com)"
+                required: true
+                type: string
 
 permissions:
     contents: read
@@ -18,7 +18,7 @@ jobs:
             - name: ZAP Baseline Scan
               uses: zaproxy/action-baseline@v0.12.0
               with:
-                  # You will replace this after you confirm the ingress/ALB URL
-                  target: "https://REPLACE_ME"
+                  target: ${{ inputs.target }}
                   fail_action: false
                   cmd_options: "-a"
+# Then add DEV_DAST_TARGET in repo secrets later (your ingress URL).
