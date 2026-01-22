@@ -38,7 +38,7 @@ func main() {
 
 	state := &appState{db: db, dbReady: false}
 
-	// background ping loop.
+	// background ping loop
 	go func() {
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()
