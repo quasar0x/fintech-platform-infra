@@ -40,7 +40,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// root endpoint (useful for scanners / load balancers)
+	// root endpoint (useful for scanners/load balancers)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"service": cfg.AppName,
@@ -49,7 +49,7 @@ func main() {
 		})
 	})
 
-	// health endpoints (NO auth)
+	// health endpoints(NO auth).
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status": "ok",
