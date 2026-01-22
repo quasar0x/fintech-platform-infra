@@ -79,7 +79,7 @@ func main() {
 		log.Fatalf("JWT_PRIVATE_KEY invalid/missing: %v", err)
 	}
 
-	// Public key: env var (safe to keep in values.yaml as it's public)
+	// Public key: env var(safe to keep in values.yaml as it's public)
 	publicKey, err := parseRSAPublicKeyFromPEM(os.Getenv("JWT_PUBLIC_KEY"))
 	if err != nil {
 		log.Fatalf("JWT_PUBLIC_KEY invalid/missing: %v", err)
