@@ -1,0 +1,174 @@
+name: reusable - promote to prod (verified)
+
+on:
+    workflow_call:
+        inputs:
+            service_name:
+                type: string
+                required: true
+            values_file:
+                type: string
+                required: true
+            ecr_repository:
+                type: string
+                required: true
+            image_tag:
+                type: string
+                required: true
+            workflow_file:
+                type: string
+                required: true
+            aws_region:
+                type: string
+                required: true
+            aws_account_id:
+                type: string
+                required: true
+            role_to_assume:
+                type: string
+                required: true
+            environment:
+                type: string
+                required: false
+                default: "prod"
+
+permissions:
+    contents: write
+    pull-requests: write
+    id-token: write
+
+jobs:
+    promote:
+        runs-on: ubuntu-latest
+        env:
+            AWS_REGION: ${{ inputs.aws_region }}
+            AWS_ACCOUNT_ID: ${{ inputs.aws_account_id }}
+            ECR_REPOSITORY: ${{ inputs.ecr_repository }}
+            SERVICE_NAME: ${{ inputs.service_name }}
+            VALUES_FILE: ${{ inputs.values_file }}
+            TAG: ${{ inputs.image_tag }}
+            WORKFLOW_FILE: ${{ inputs.workflow_file }}
+            ENVIRONMENT: ${{ inputs.environment }}
+
+        steps:
+            - name: Validate input tag
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  if [[ "${TAG}" != sha-* ]]; then
+                    echo "ERROR: image_tag must look like sha-xxxxxxx (example: sha-24482af). Got: ${TAG}"
+                    exit 1
+                  fi
+
+            - name: Checkout main
+              uses: actions/checkout@v4
+              with:
+                  ref: main
+
+            - name: Configure AWS credentials (OIDC)
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: ${{ inputs.role_to_assume }}
+                  aws-region: ${{ env.AWS_REGION }}
+
+            - name: Login to Amazon ECR
+              uses: aws-actions/amazon-ecr-login@v2
+
+            - name: Verify tag exists and fetch image digest
+              id: digest
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  echo "Checking ECR for ${ECR_REPOSITORY}:${TAG} ..."
+
+                  # Ensure tag exists
+                  aws ecr describe-images \
+                    --region "${AWS_REGION}" \
+                    --repository-name "${ECR_REPOSITORY}" \
+                    --image-ids imageTag="${TAG}" >/dev/null
+
+                  # Fetch digest (repoDigest)
+                  DIGEST="$(aws ecr describe-images \
+                    --region "${AWS_REGION}" \
+                    --repository-name "${ECR_REPOSITORY}" \
+                    --image-ids imageTag="${TAG}" \
+                    --query 'imageDetails[0].imageDigest' \
+                    --output text)"
+
+                  if [[ -z "${DIGEST}" || "${DIGEST}" == "None" ]]; then
+                    echo "ERROR: Could not determine image digest for ${ECR_REPOSITORY}:${TAG}"
+                    exit 1
+                  fi
+
+                  echo "✅ Tag exists. Digest: ${DIGEST}"
+                  echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+            - name: Install cosign
+              uses: sigstore/cosign-installer@v3.6.0
+
+            - name: Verify Cosign signature (keyless) by digest
+              shell: bash
+              env:
+                  COSIGN_EXPERIMENTAL: "true"
+              run: |
+                  set -euo pipefail
+
+                  DIGEST="${{ steps.digest.outputs.digest }}"
+                  IMAGE_REF="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}@${DIGEST}"
+
+                  # Accept signatures produced by your CI workflow on either main or develop.
+                  IDENTITY_REGEX="^https://github.com/${GITHUB_REPOSITORY}/${WORKFLOW_FILE}@refs/heads/(main|develop)$"
+
+                  echo "Verifying signature for: ${IMAGE_REF}"
+                  echo "Using certificate identity regex: ${IDENTITY_REGEX}"
+
+                  cosign verify \
+                    --certificate-identity-regexp "${IDENTITY_REGEX}" \
+                    --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+                    "${IMAGE_REF}"
+
+                  echo "✅ Cosign verification passed (digest)."
+
+            - name: Update values tag
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  if [ ! -f "${VALUES_FILE}" ]; then
+                    echo "ERROR: values file not found: ${VALUES_FILE}"
+                    exit 1
+                  fi
+
+                  echo "Before:"
+                  grep -nE "^[[:space:]]*tag:" "${VALUES_FILE}" || true
+
+                  sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "${VALUES_FILE}"
+                  rm -f "${VALUES_FILE}.bak"
+
+                  echo "After:"
+                  grep -nE "^[[:space:]]*tag:" "${VALUES_FILE}"
+
+            - name: Create PR to main
+              uses: peter-evans/create-pull-request@v6
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  base: main
+                  branch: "promote/${{ inputs.service_name }}-${{ inputs.image_tag }}"
+                  title: "Promote ${{ inputs.service_name }} to ${{ inputs.image_tag }} (verified)"
+                  commit-message: "promote(${{ inputs.service_name }}): ${{ inputs.image_tag }}"
+                  body: |
+                      This PR promotes **${{ inputs.service_name }}** to `${{ inputs.image_tag }}` after verification:
+
+                      ✅ ECR tag exists
+                      ✅ Image digest fetched from ECR
+                      ✅ Cosign keyless signature verified **by digest** (GitHub OIDC)
+
+                      Updated:
+                      - `${{ inputs.values_file }}`
+
+                      After merge, ArgoCD will sync from `main`.
+                  labels: |
+                      gitops
+                      promote
+                      verified
+                  delete-branch: true

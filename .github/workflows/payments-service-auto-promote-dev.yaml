@@ -1,8 +1,8 @@
-name: Auto-promote payments-service to dev (GitOps)
+name: Auto-promote payments-service to dev (GitOps) [digest-verified]
 
 on:
     workflow_run:
-        workflows: ["payments-service (build & push to ECR)"]
+        workflows: ["payments-service (secure CI)"]
         types: [completed]
 
 permissions:
@@ -11,6 +11,11 @@ permissions:
 concurrency:
     group: payments-service-auto-promote-dev
     cancel-in-progress: false
+
+env:
+    AWS_REGION: us-east-1
+    AWS_ACCOUNT_ID: "461508717137"
+    ECR_REPOSITORY: payments-service
 
 jobs:
     promote-dev:
@@ -24,13 +29,63 @@ jobs:
               with:
                   ref: develop
 
-            - name: Update dev values image tag (sha-<short>) and push to develop
+            - name: Configure AWS credentials (OIDC)
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  role-to-assume: arn:aws:iam::461508717137:role/github-actions-ecr-push
+                  aws-region: ${{ env.AWS_REGION }}
+
+            - name: Compute tag from workflow SHA
+              id: tag
               shell: bash
               run: |
                   set -euo pipefail
-
                   SHORT_SHA="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
-                  TAG="sha-${SHORT_SHA}"
+                  echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+            - name: Verify tag exists and fetch digest from ECR
+              id: digest
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  TAG="${{ steps.tag.outputs.tag }}"
+                  echo "Checking ECR for ${ECR_REPOSITORY}:${TAG} ..."
+
+                  aws ecr describe-images \
+                    --region "${AWS_REGION}" \
+                    --repository-name "${ECR_REPOSITORY}" \
+                    --image-ids imageTag="${TAG}" >/dev/null
+
+                  DIGEST="$(aws ecr describe-images \
+                    --region "${AWS_REGION}" \
+                    --repository-name "${ECR_REPOSITORY}" \
+                    --image-ids imageTag="${TAG}" \
+                    --query 'imageDetails[0].imageDigest' \
+                    --output text)"
+
+                  if [[ -z "${DIGEST}" || "${DIGEST}" == "None" ]]; then
+                    echo "ERROR: Could not determine digest for ${ECR_REPOSITORY}:${TAG}"
+                    exit 1
+                  fi
+
+                  echo "✅ Tag exists. Digest: ${DIGEST}"
+                  echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+            - name: Print digest reference (info)
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  TAG="${{ steps.tag.outputs.tag }}"
+                  DIGEST="${{ steps.digest.outputs.digest }}"
+                  IMAGE_REF="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}@${DIGEST}"
+                  echo "Promoting payments-service tag=${TAG} digest=${DIGEST}"
+                  echo "Image ref (digest): ${IMAGE_REF}"
+
+            - name: Update dev values image tag
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  TAG="${{ steps.tag.outputs.tag }}"
                   VALUES_FILE="fintech-gitops/apps/dev/values/payments-service.yaml"
 
                   if [ ! -f "$VALUES_FILE" ]; then
@@ -38,17 +93,28 @@ jobs:
                     exit 1
                   fi
 
-                  echo "Promoting payments-service to DEV tag: $TAG"
+                  echo "Before:"
+                  grep -nE "^[[:space:]]*tag:" "$VALUES_FILE" || true
+
                   sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$VALUES_FILE"
                   rm -f "${VALUES_FILE}.bak"
+
+                  echo "After:"
+                  grep -nE "^[[:space:]]*tag:" "$VALUES_FILE"
+
+            - name: Commit and push to develop
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  TAG="${{ steps.tag.outputs.tag }}"
+                  VALUES_FILE="fintech-gitops/apps/dev/values/payments-service.yaml"
 
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
                   git add "$VALUES_FILE"
-                  git commit -m "chore(dev): promote payments-service to ${TAG}" || {
+                  git commit -m "chore(dev): promote payments-service to ${TAG} (digest verified)" || {
                     echo "No change to commit."
                     exit 0
                   }
-
                   git push origin develop
