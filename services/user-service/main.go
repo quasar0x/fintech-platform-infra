@@ -27,7 +27,7 @@ func main() {
 		log.Fatalf("config error: %v", err)
 	}
 
-	// Connect DB
+	// Connect DB.
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatalf("db open error: %v", err)
@@ -38,7 +38,7 @@ func main() {
 
 	state := &appState{db: db, dbReady: false}
 
-	// background ping loop.
+	// background ping loop
 	go func() {
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()

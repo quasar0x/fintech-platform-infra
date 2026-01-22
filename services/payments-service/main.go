@@ -149,7 +149,7 @@ func (st *appState) createPayment(w http.ResponseWriter, r *http.Request) {
 		&p.ID, &p.UserID, &p.Amount, &p.Currency, &p.Status, &p.Ref, &p.CreatedAt,
 	)
 	if err != nil {
-		// unique ref per user (see schema) treat duplicates as conflict.
+		// unique ref per user (see schema) treat duplicates as conflict
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			http.Error(w, "duplicate ref", http.StatusConflict)
 			return
