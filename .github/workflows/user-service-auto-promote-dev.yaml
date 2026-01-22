@@ -17,6 +17,7 @@ env:
     AWS_REGION: us-east-1
     AWS_ACCOUNT_ID: "461508717137"
     ECR_REPOSITORY: user-service
+    VALUES_FILE: fintech-gitops/apps/dev/values/user-service.yaml
 
 jobs:
     promote-dev:
@@ -29,6 +30,7 @@ jobs:
               uses: actions/checkout@v4
               with:
                   ref: develop
+                  fetch-depth: 0
 
             - name: Configure AWS credentials (OIDC)
               uses: aws-actions/configure-aws-credentials@v4
@@ -82,40 +84,58 @@ jobs:
                   echo "Promoting user-service tag=${TAG} digest=${DIGEST}"
                   echo "Image ref (digest): ${IMAGE_REF}"
 
-            - name: Update dev values image tag
+            - name: Update values + commit + push (conflict-proof retries)
               shell: bash
               run: |
                   set -euo pipefail
-                  TAG="${{ steps.tag.outputs.tag }}"
-                  VALUES_FILE="fintech-gitops/apps/dev/values/user-service.yaml"
 
-                  if [ ! -f "$VALUES_FILE" ]; then
-                    echo "ERROR: values file not found: $VALUES_FILE"
+                  TAG="${{ steps.tag.outputs.tag }}"
+                  FILE="${{ env.VALUES_FILE }}"
+
+                  if [ ! -f "$FILE" ]; then
+                    echo "ERROR: values file not found: $FILE"
                     exit 1
                   fi
-
-                  echo "Before:"
-                  grep -nE "^[[:space:]]*tag:" "$VALUES_FILE" || true
-
-                  sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$VALUES_FILE"
-                  rm -f "${VALUES_FILE}.bak"
-
-                  echo "After:"
-                  grep -nE "^[[:space:]]*tag:" "$VALUES_FILE"
-
-            - name: Commit and push to develop
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  TAG="${{ steps.tag.outputs.tag }}"
-                  VALUES_FILE="fintech-gitops/apps/dev/values/user-service.yaml"
 
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-                  git add "$VALUES_FILE"
-                  git commit -m "chore(dev): promote user-service to ${TAG} (digest verified)" || {
-                    echo "No change to commit."
-                    exit 0
-                  }
-                  git push origin develop
+                  MAX_ATTEMPTS=5
+                  ATTEMPT=1
+
+                  while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+                    echo "---- Attempt ${ATTEMPT}/${MAX_ATTEMPTS} ----"
+
+                    git fetch origin develop
+                    git reset --hard origin/develop
+
+                    echo "Before:"
+                    grep -nE "^[[:space:]]*tag:" "$FILE" || true
+
+                    sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$FILE"
+                    rm -f "${FILE}.bak"
+
+                    echo "After:"
+                    grep -nE "^[[:space:]]*tag:" "$FILE" || true
+
+                    git add "$FILE"
+
+                    if git diff --cached --quiet; then
+                      echo "No change to commit. Already at ${TAG}."
+                      exit 0
+                    fi
+
+                    git commit -m "chore(dev): promote user-service to ${TAG} (digest verified)"
+
+                    if git push origin HEAD:develop; then
+                      echo "✅ Pushed successfully."
+                      exit 0
+                    fi
+
+                    echo "Push failed (branch moved). Retrying..."
+                    sleep $((ATTEMPT * 2))
+                    ATTEMPT=$((ATTEMPT + 1))
+                  done
+
+                  echo "ERROR: Failed to push after ${MAX_ATTEMPTS} attempts."
+                  exit 1
