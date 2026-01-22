@@ -3,8 +3,12 @@ name: DAST (OWASP ZAP) against dev
 on:
     workflow_dispatch:
         inputs:
-            target:
-                description: "Full URL to scan (e.g. https://dev-api.example.com)"
+            target_base:
+                description: "Base URL to scan (ALB URL). Example: http://k8s-xxx.elb.amazonaws.com"
+                required: true
+                type: string
+            host_header:
+                description: "Host header required by Ingress. Example: api-dev.fintech.local"
                 required: true
                 type: string
 
@@ -15,10 +19,16 @@ jobs:
     zap-baseline:
         runs-on: ubuntu-latest
         steps:
-            - name: ZAP Baseline Scan
+            - name: ZAP Baseline Scan (with Host header)
               uses: zaproxy/action-baseline@v0.12.0
               with:
-                  target: ${{ inputs.target }}
+                  target: ${{ inputs.target_base }}
                   fail_action: false
-                  cmd_options: "-a"
-# Then add DEV_DAST_TARGET in repo secrets later (your ingress URL).
+                  cmd_options: >
+                      -a
+                      -z "-config replacer.full_list(0).description=hosthdr
+                          -config replacer.full_list(0).enabled=true
+                          -config replacer.full_list(0).matchtype=REQ_HEADER
+                          -config replacer.full_list(0).matchstr=Host
+                          -config replacer.full_list(0).regex=false
+                          -config replacer.full_list(0).replacement=${{ inputs.host_header }}"
