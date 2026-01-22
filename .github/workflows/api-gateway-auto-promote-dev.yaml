@@ -103,7 +103,7 @@ jobs:
           echo "After:"
           grep -nE "^[[:space:]]*tag:" "$VALUES_FILE"
 
-      - name: Commit and push to develop
+      - name: Commit and push to develop (rebase-safe)
         shell: bash
         run: |
           set -euo pipefail
@@ -118,4 +118,9 @@ jobs:
             echo "No change to commit."
             exit 0
           }
-          git push origin develop
+
+          # 🔒 Prevent non-fast-forward errors
+          git fetch origin develop
+          git rebase origin/develop
+
+          git push origin HEAD:develop
