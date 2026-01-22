@@ -1,13 +1,12 @@
-name: Auto-promote api-gateway to dev (GitOps)
+name: Auto-promote api-gateway to dev (GitOps) [digest-verified]
 
 on:
   workflow_run:
-    workflows: ["api-gateway (build & push to ECR)"]
+    workflows: ["api-gateway (secure CI)"]
     types: [completed]
 
 permissions:
   contents: write
-  id-token: write
 
 concurrency:
   group: api-gateway-auto-promote-dev
@@ -44,19 +43,43 @@ jobs:
           SHORT_SHA="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
           echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Verify image tag exists in ECR
+      - name: Verify tag exists and fetch digest from ECR
+        id: digest
         shell: bash
         run: |
           set -euo pipefail
           TAG="${{ steps.tag.outputs.tag }}"
-          echo "Checking ECR for tag: $TAG"
+          echo "Checking ECR for ${ECR_REPOSITORY}:${TAG} ..."
 
           aws ecr describe-images \
-            --region "${{ env.AWS_REGION }}" \
-            --repository-name "${{ env.ECR_REPOSITORY }}" \
-            --image-ids imageTag="$TAG" >/dev/null
+            --region "${AWS_REGION}" \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids imageTag="${TAG}" >/dev/null
 
-          echo "✅ Tag exists in ECR: $TAG"
+          DIGEST="$(aws ecr describe-images \
+            --region "${AWS_REGION}" \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids imageTag="${TAG}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)"
+
+          if [[ -z "${DIGEST}" || "${DIGEST}" == "None" ]]; then
+            echo "ERROR: Could not determine digest for ${ECR_REPOSITORY}:${TAG}"
+            exit 1
+          fi
+
+          echo "✅ Tag exists. Digest: ${DIGEST}"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Print digest reference (info)
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          DIGEST="${{ steps.digest.outputs.digest }}"
+          IMAGE_REF="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}@${DIGEST}"
+          echo "Promoting api-gateway tag=${TAG} digest=${DIGEST}"
+          echo "Image ref (digest): ${IMAGE_REF}"
 
       - name: Update dev values image tag
         shell: bash
@@ -90,7 +113,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add "$VALUES_FILE"
-          git commit -m "chore(dev): promote api-gateway to ${TAG}" || {
+          git commit -m "chore(dev): promote api-gateway to ${TAG} (digest verified)" || {
             echo "No change to commit."
             exit 0
           }

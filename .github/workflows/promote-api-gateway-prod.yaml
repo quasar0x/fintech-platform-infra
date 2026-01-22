@@ -1,5 +1,4 @@
-name: Promote api-gateway to prod (GitOps)
-
+name: Promote api-gateway to prod (GitOps) [verified]
 on:
     workflow_dispatch:
         inputs:
@@ -10,79 +9,21 @@ on:
                 description: "Environment folder under fintech-gitops/apps (example: prod)"
                 required: true
                 default: "prod"
-
 permissions:
     contents: write
     pull-requests: write
-
+    id-token: write
 jobs:
-    promote:
-        runs-on: ubuntu-latest
-
-        steps:
-            - name: Checkout main
-              uses: actions/checkout@v4
-              with:
-                  ref: main
-
-            - name: Update image tag in values
-              shell: bash
-              run: |
-                  set -euo pipefail
-
-                  ENV="${{ inputs.environment }}"
-                  TAG="${{ inputs.image_tag }}"
-
-                  # ✅ Correct path based on your repo tree
-                  VALUES_FILE="fintech-gitops/apps/${ENV}/values/api-gateway.yaml"
-
-                  # Safety: ensure user passes sha-xxxxxxx
-                  if [[ "$TAG" != sha-* ]]; then
-                    echo "ERROR: image_tag must look like sha-xxxxxxx (example: sha-24482af). Got: $TAG"
-                    exit 1
-                  fi
-
-                  if [ ! -f "$VALUES_FILE" ]; then
-                    echo "ERROR: values file not found: $VALUES_FILE"
-                    echo "Repo root:"
-                    ls -la
-                    echo "fintech-gitops/apps:"
-                    ls -la fintech-gitops/apps || true
-                    echo "fintech-gitops/apps/${ENV}:"
-                    ls -la "fintech-gitops/apps/${ENV}" || true
-                    echo "fintech-gitops/apps/${ENV}/values:"
-                    ls -la "fintech-gitops/apps/${ENV}/values" || true
-                    exit 1
-                  fi
-
-                  echo "Before:"
-                  grep -nE "^[[:space:]]*tag:" "$VALUES_FILE" || true
-
-                  # Replace only the line that starts with "tag:"
-                  sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$VALUES_FILE"
-                  rm -f "${VALUES_FILE}.bak"
-
-                  echo "After:"
-                  grep -nE "^[[:space:]]*tag:" "$VALUES_FILE"
-
-            - name: Create PR
-              uses: peter-evans/create-pull-request@v6
-              with:
-                  # ✅ Improvement 2: explicitly use GITHUB_TOKEN (works with your repo Actions permissions)
-                  token: ${{ secrets.GITHUB_TOKEN }}
-
-                  base: main
-                  branch: "promote/api-gateway-${{ inputs.image_tag }}"
-                  title: "Promote api-gateway to ${{ inputs.image_tag }}"
-                  commit-message: "promote(api-gateway): ${{ inputs.image_tag }}"
-                  body: |
-                      This PR promotes api-gateway to `${{ inputs.image_tag }}` by updating:
-                      - `fintech-gitops/apps/${{ inputs.environment }}/values/api-gateway.yaml`
-
-                      After merge, ArgoCD will sync from `main`.
-                  labels: |
-                      gitops
-                      promote
-
-                  # ✅ Improvement 1: avoid branch collisions / stale promote branches
-                  delete-branch: true
+    call-verified-promote:
+        uses: ./.github/workflows/_reusable-promote-prod-verified.yaml
+        with:
+            service_name: api-gateway
+            values_file: fintech-gitops/apps/${{ inputs.environment }}/values/api-gateway.yaml
+            ecr_repository: api-gateway
+            image_tag: ${{ inputs.image_tag }}
+            workflow_file: .github/workflows/api-gateway-ci.yaml
+            aws_region: us-east-1
+            aws_account_id: "461508717137"
+            role_to_assume: arn:aws:iam::461508717137:role/github-actions-ecr-push
+            environment: ${{ inputs.environment }}
+        secrets: inherit
