@@ -73,7 +73,7 @@ func main() {
 	refreshTTL := mustDurationSeconds(getenv("REFRESH_TOKEN_TTL_SECONDS", "604800"))
 
 	// --- Load JWT keys ---
-	// Private key: prefer file path (K8s secret mount), fallback to env var for local/dev.
+	// Private key: prefer file path (K8s secret mount) fallback to env var for local/dev.
 	privateKey, err := loadRSAPrivateKey()
 	if err != nil {
 		log.Fatalf("JWT_PRIVATE_KEY invalid/missing: %v", err)
