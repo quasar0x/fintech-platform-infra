@@ -3,19 +3,14 @@ name: DAST (OWASP ZAP) against dev
 on:
     workflow_dispatch:
         inputs:
-            alb_base:
-                description: "ALB base URL (no path). Example: http://k8s-xxx.elb.amazonaws.com"
+            target:
+                description: "Full URL to scan (ALB address) e.g. http://k8s-xxx.elb.amazonaws.com"
                 required: true
                 type: string
             host_header:
-                description: "Ingress host. Example: api-dev.fintech.local"
+                description: "Host header for Ingress routing e.g. api-dev.fintech.local"
                 required: true
                 type: string
-            start_path:
-                description: "A known 200 endpoint. Example: /healthz"
-                required: true
-                type: string
-                default: "/healthz"
 
 permissions:
     contents: read
@@ -24,45 +19,17 @@ jobs:
     zap-baseline:
         runs-on: ubuntu-latest
         steps:
-            - name: Run ZAP baseline via Docker (Host header + start path)
-              shell: bash
-              run: |
-                  set -euo pipefail
-
-                  ALB="${{ inputs.alb_base }}"
-                  HOST="${{ inputs.host_header }}"
-                  PATH_="${{ inputs.start_path }}"
-
-                  TARGET="${ALB%/}${PATH_}"
-
-                  echo "Target: $TARGET"
-                  echo "Host header: $HOST"
-
-                  docker pull ghcr.io/zaproxy/zaproxy:stable
-
-                  # Run as root to avoid /zap/wrk permission issues
-                  docker run --rm \
-                    -u 0:0 \
-                    -v "${PWD}:/zap/wrk/:rw" \
-                    ghcr.io/zaproxy/zaproxy:stable \
-                    zap-baseline.py \
-                      -t "$TARGET" \
-                      -J report_json.json \
-                      -w report_md.md \
-                      -r report_html.html \
-                      -a \
-                      -z "-config replacer.full_list(0).description=hosthdr \
-                          -config replacer.full_list(0).enabled=true \
-                          -config replacer.full_list(0).matchtype=REQ_HEADER \
-                          -config replacer.full_list(0).matchstr=Host \
-                          -config replacer.full_list(0).regex=false \
-                          -config replacer.full_list(0).replacement=${HOST}"
-
-            - name: Upload ZAP reports
-              uses: actions/upload-artifact@v4
+            - name: ZAP Baseline Scan (report-only)
+              uses: zaproxy/action-baseline@v0.12.0
               with:
-                  name: zap_scan
-                  path: |
-                      report_json.json
-                      report_md.md
-                      report_html.html
+                  target: ${{ inputs.target }}
+                  fail_action: false
+                  cmd_options: >-
+                      -a
+                      -I
+                      -z "-config replacer.full_list(0).description=hosthdr
+                          -config replacer.full_list(0).enabled=true
+                          -config replacer.full_list(0).matchtype=REQ_HEADER
+                          -config replacer.full_list(0).matchstr=Host
+                          -config replacer.full_list(0).regex=false
+                          -config replacer.full_list(0).replacement=${{ inputs.host_header }}"
