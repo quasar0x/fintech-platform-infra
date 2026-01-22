@@ -119,7 +119,7 @@ func parseRSAPublicKeyFromPEM(pemStr string) (*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("failed to decode PEM block")
 	}
 
-	// Expect PKIX "PUBLIC KEY"
+	// Expect PKIX "PUBLIC KEY".
 	pubAny, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err
