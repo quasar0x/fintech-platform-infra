@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// helper to build the same mux used in main (copy of route wiring)
+// helper to build the same mux used in main(copy of route wiring)
 func newTestMux(st *appState, app, env string) http.Handler {
 	mux := http.NewServeMux()
 

@@ -49,7 +49,7 @@ func main() {
 		})
 	})
 
-	// health endpoints(NO auth)
+	// health endpoints(NO auth).
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status": "ok",
