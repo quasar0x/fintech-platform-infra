@@ -49,10 +49,13 @@ secrets:
   existingSecretName: auth-service-secret
   keys:
     - DB_PASSWORD
+    - JWT_PRIVATE_KEY
+
   mounts:
     - name: auth-jwt-key
       mountPath: /var/run/secrets/jwt
       readOnly: true
+
   volumes:
     - name: auth-jwt-key
       secret:
