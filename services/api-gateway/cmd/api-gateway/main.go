@@ -58,7 +58,7 @@ func main() {
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		// In real life: check dependencies (db/cache/queue) For now: always ready.
+		// In real life: check dependencies (db/cache/queue) For now: always ready
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status": "ready",
 		})
