@@ -22,7 +22,7 @@ type appState struct {
 
 type createPaymentRequest struct {
 	UserID   string `json:"user_id"`
-	Amount   int64  `json:"amount"`   // store in minor units (e.g., kobo/cents)
+	Amount   int64  `json:"amount"`   // store in minor units (e.g.,kobo/cents)
 	Currency string `json:"currency"` // "NGN", "USD"
 	Ref      string `json:"ref"`      // client reference / idempotency-ish.
 }
