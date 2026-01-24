@@ -4,7 +4,7 @@ replicaCount: 1
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/auth-service
-  tag: sha-18092d9
+  tag: sha-d08be98
   pullPolicy: IfNotPresent
 
 service:
