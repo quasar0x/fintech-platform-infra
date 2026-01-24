@@ -27,7 +27,7 @@ func main() {
 		log.Fatalf("config error: %v", err)
 	}
 
-	// Connect DB
+	// Connect DB.
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatalf("db open error: %v", err)

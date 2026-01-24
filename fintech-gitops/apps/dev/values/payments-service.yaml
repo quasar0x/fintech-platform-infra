@@ -3,7 +3,7 @@ replicaCount: 1
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/payments-service
-  tag: sha-c390027
+  tag: sha-18092d9
   pullPolicy: IfNotPresent
 
 service:
