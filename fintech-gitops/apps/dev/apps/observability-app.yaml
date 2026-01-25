@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-dev
+  namespace: argocd
+spec:
+  project: fintech
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring-dev
+  source:
+    repoURL: https://github.com/quasar0x/fintech-platform-infra.git
+    targetRevision: develop
+    path: fintech-gitops/observability/dev/apps
+    directory:
+      recurse: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
