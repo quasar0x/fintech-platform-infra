@@ -1,9 +1,7 @@
 config:
   clients:
-    - url: http://loki-dev:3100/loki/api/v1/push
+    - url: http://loki-dev.monitoring-dev.svc.cluster.local:3100/loki/api/v1/push
 
-serviceMonitor:
-  enabled: true
-
-extraArgs:
-  - -config.expand-env=true
+  snippets:
+    pipelineStages:
+      - cri: {}
