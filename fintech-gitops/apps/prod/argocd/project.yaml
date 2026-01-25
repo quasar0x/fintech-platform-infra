@@ -24,6 +24,12 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: argocd
 
+    - server: https://kubernetes.default.svc
+      namespace: monitoring-dev
+
+    - server: https://kubernetes.default.svc
+      namespace: monitoring-prod
+
   # Allow deploying any namespaced resources (safe default for internal projects)
   clusterResourceWhitelist:
     - group: "*"
