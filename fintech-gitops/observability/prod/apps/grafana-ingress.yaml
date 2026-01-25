@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-ingress-prod
+  namespace: argocd
+spec:
+  project: fintech
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring-prod
+
+  source:
+    repoURL: https://github.com/quasar0x/fintech-platform-infra.git
+    targetRevision: main
+    path: fintech-gitops/observability/monitoring
+    directory:
+      include: "ingress-grafana-prod.yaml"
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
