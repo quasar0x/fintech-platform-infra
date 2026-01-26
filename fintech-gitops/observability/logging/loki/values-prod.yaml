@@ -12,6 +12,7 @@ singleBinary:
   persistence:
     enabled: true
     size: 10Gi
+    storageClass: gp2
 
 # ✅ FIX: chart expects serviceAccount at TOP LEVEL (not under loki:)
 serviceAccount:
