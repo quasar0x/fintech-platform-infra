@@ -5,9 +5,9 @@ resource "aws_eks_node_group" "default" {
   subnet_ids      = var.private_subnets
 
   scaling_config {
-    desired_size = 2
-    min_size     = 1
-    max_size     = 4
+    desired_size = var.node_desired_size
+    min_size     = var.node_min_size
+    max_size     = var.node_max_size
   }
 
   instance_types = ["t3.medium"]
