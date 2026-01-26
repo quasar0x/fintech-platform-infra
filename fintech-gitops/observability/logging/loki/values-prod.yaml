@@ -39,6 +39,7 @@ loki:
   storage_config:
     aws:
       s3: s3://us-east-1/fintech-platform-loki-prod
+      region: us-east-1
       s3forcepathstyle: true
 
   storage:
