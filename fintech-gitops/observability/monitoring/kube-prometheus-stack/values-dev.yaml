@@ -12,3 +12,6 @@ kubeProxy:
 
 coreDns:
   enabled: false
+
+prometheus-node-exporter:
+  enabled: false

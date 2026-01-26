@@ -1,10 +1,25 @@
+deploymentMode: SingleBinary
+
+# disable distributed/scalable components
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 10Gi
+    # storageClass: gp3  # set to your actual StorageClass if needed
+
 loki:
-  storage:
-    type: filesystem
-    bucketNames:
-      chunks: chunks
-      ruler: ruler
-      admin: admin
+  auth_enabled: false
 
   commonConfig:
     replication_factor: 1
+
+  storage:
+    type: filesystem
