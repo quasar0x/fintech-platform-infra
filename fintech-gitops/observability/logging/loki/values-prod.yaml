@@ -13,7 +13,14 @@ singleBinary:
   persistence:
     enabled: true
     size: 10Gi
-    # storageClass: gp3  # set to your actual StorageClass if needed
+    # storageClass: gp3
+
+# ✅ IRSA should be TOP-LEVEL
+serviceAccount:
+  create: true
+  name: loki-prod
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::461508717137:role/loki-irsa-prod
 
 loki:
   auth_enabled: false
@@ -21,5 +28,20 @@ loki:
   commonConfig:
     replication_factor: 1
 
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  storageConfig:
+    aws:
+      s3: s3://us-east-1/fintech-platform-loki-prod
+      s3forcepathstyle: true
+
   storage:
-    type: filesystem
+    type: s3

@@ -12,3 +12,7 @@ output "github_actions_oidc_provider_arn" {
   description = "OIDC provider ARN used by GitHub Actions"
   value       = module.github_actions_ecr.oidc_provider_arn
 }
+
+output "loki_s3_bucket" {
+  value = aws_s3_bucket.loki.bucket
+}
