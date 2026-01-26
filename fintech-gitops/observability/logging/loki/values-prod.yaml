@@ -1,0 +1,10 @@
+loki:
+  storage:
+    type: filesystem
+    bucketNames:
+      chunks: chunks
+      ruler: ruler
+      admin: admin
+
+  commonConfig:
+    replication_factor: 1
