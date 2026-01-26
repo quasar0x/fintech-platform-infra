@@ -1,6 +1,5 @@
 deploymentMode: SingleBinary
 
-# disable distributed/scalable components
 backend:
   replicas: 0
 read:
@@ -13,21 +12,19 @@ singleBinary:
   persistence:
     enabled: true
     size: 10Gi
-    # storageClass: gp3
-
-# ✅ IRSA should be TOP-LEVEL
-serviceAccount:
-  create: true
-  name: loki-prod
-  annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::461508717137:role/loki-irsa-prod
 
 loki:
+  serviceAccount:
+    create: true
+    name: loki-prod
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::461508717137:role/loki-irsa-prod
   auth_enabled: false
 
   commonConfig:
     replication_factor: 1
 
+  # ✅ required
   schemaConfig:
     configs:
       - from: "2024-01-01"
@@ -38,10 +35,15 @@ loki:
           prefix: loki_index_
           period: 24h
 
-  storageConfig:
+  # ✅ IMPORTANT: snake_case key expected by chart templates
+  storage_config:
     aws:
       s3: s3://us-east-1/fintech-platform-loki-prod
       s3forcepathstyle: true
 
   storage:
     type: s3
+    bucketNames:
+      chunks: fintech-platform-loki-prod
+      ruler: fintech-platform-loki-prod
+      admin: fintech-platform-loki-prod

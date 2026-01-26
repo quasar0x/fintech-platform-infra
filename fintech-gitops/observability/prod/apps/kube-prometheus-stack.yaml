@@ -18,6 +18,7 @@ spec:
         releaseName: kube-prometheus-stack-prod
         valueFiles:
           - $values/fintech-gitops/observability/monitoring/kube-prometheus-stack/values-prod.yaml
+        skipCrds: true
     - repoURL: https://github.com/quasar0x/fintech-platform-infra.git
       targetRevision: main
       ref: values
