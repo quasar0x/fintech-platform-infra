@@ -2,48 +2,56 @@ fintech-platform-infra
 
 Fintech Platform – Cloud Infrastructure & GitOps
 
-This repository contains the production-grade cloud infrastructure, CI/CD, and GitOps setup for a containerized fintech microservices platform running on AWS EKS.
+This repository contains the production-grade cloud infrastructure, CI/CD pipelines, and GitOps configuration for a containerized fintech microservices platform running on AWS EKS.
 
-It covers everything from infrastructure provisioning with Terraform, to container build & push with GitHub Actions, to continuous deployment with Argo CD, and production observability using Prometheus/Grafana and Loki/Promtail.
+It covers the full lifecycle of a modern cloud-native platform:
+	•	Infrastructure provisioning with Terraform
+	•	Container build and push with GitHub Actions
+	•	Continuous delivery using Argo CD (GitOps)
+	•	Production-grade monitoring and logging with Prometheus, Grafana, Loki, and Promtail
+
+This is not a demo setup. The repository is structured and operated the way a real-world fintech production platform would be.
 
 ⸻
 
 What Has Been Built
 
-At the moment, this project provides:
+At its current stage, this project provides:
 	•	Fully provisioned AWS infrastructure using Terraform
-	•	A managed Kubernetes (EKS) cluster
+	•	A managed Kubernetes cluster (Amazon EKS)
 	•	Multiple fintech microservices running in Kubernetes
-	•	CI pipelines for building and pushing container images
+	•	CI pipelines for building and pushing container images to Amazon ECR
 	•	GitOps-based deployments using Argo CD
-	•	Production logging and monitoring
+	•	Centralized monitoring and logging
 	•	Secure AWS access using IAM Roles for Service Accounts (IRSA)
-
-This is not a demo setup — it is structured the way a real production fintech platform would be run.
 
 ⸻
 
 Architecture Overview
 
-GitHub
- ├── Application Code
- │    └── GitHub Actions (CI)
- │         └── Build & Push Images → Amazon ECR
- │
- └── Infrastructure / GitOps Repo
-      ├── Terraform → AWS (VPC, EKS, RDS, IAM, S3)
-      └── Argo CD → Kubernetes (GitOps)
+High-Level Flow
+
+GitHub (Application Code)
+  └── GitHub Actions (CI)
+        └── Build & Push Images → Amazon ECR
+
+Infrastructure / GitOps Repository
+  ├── Terraform → AWS (VPC, EKS, RDS, IAM, S3)
+  └── Argo CD → Kubernetes (GitOps)
+
+AWS Platform
 
 AWS
  ├── VPC
  ├── EKS Cluster
- │    ├── Microservices (Dev & Prod)
+ │    ├── Fintech Microservices (Dev & Prod)
  │    ├── Prometheus (Metrics)
+ │    ├── Grafana (Dashboards)
  │    ├── Loki (Logs → S3)
  │    └── Promtail (Log Shipper)
- ├── ECR
- ├── RDS
- └── S3 (Loki log storage)
+ ├── ECR (Container Registry)
+ ├── RDS (Databases)
+ └── S3 (Loki Log Storage)
 
 
 ⸻
@@ -52,9 +60,9 @@ Technology Stack
 
 Infrastructure
 	•	AWS
-	•	EKS
+	•	Amazon EKS
 	•	EC2
-	•	EBS (via CSI driver)
+	•	EBS (via CSI Driver)
 	•	S3
 	•	IAM
 	•	ECR
@@ -95,7 +103,7 @@ fintech-platform-infra/
 │   │   ├── payments-service/
 │   │   └── user-service/
 │   └── observability/
-│       ├── monitoring/   # Prometheus stack
+│       ├── monitoring/   # Prometheus / Grafana
 │       └── logging/      # Loki + Promtail
 │
 └── README.md
@@ -105,15 +113,15 @@ fintech-platform-infra/
 
 Infrastructure Provisioning (Terraform)
 
-Terraform is used to provision AWS resources, including:
+Terraform is used to provision all AWS resources, including:
 	•	VPC and networking
-	•	EKS cluster and managed node groups
+	•	Amazon EKS cluster and managed node groups
 	•	IAM roles and policies
-	•	ECR repositories
-	•	RDS databases
-	•	S3 bucket for Loki log storage
+	•	Amazon ECR repositories
+	•	Amazon RDS databases
+	•	Amazon S3 bucket for Loki log storage
 
-Deploy Infrastructure (Prod)
+Deploy Infrastructure (Production)
 
 cd terraform/environments/prod
 
@@ -144,13 +152,13 @@ The platform currently runs the following services:
 Each service:
 	•	Runs as a Kubernetes Deployment
 	•	Uses container images stored in Amazon ECR
-	•	Is deployed via Argo CD (GitOps)
+	•	Is deployed via Argo CD using GitOps principles
 
 ⸻
 
 CI – GitHub Actions
 
-Each microservice has a CI pipeline that:
+Each microservice includes a CI pipeline that:
 	1.	Builds a Docker image
 	2.	Authenticates to AWS using OIDC
 	3.	Pushes the image to Amazon ECR
@@ -160,15 +168,15 @@ No long-lived AWS credentials are used.
 ⸻
 
 CD – GitOps with Argo CD
-	•	Argo CD watches the fintech-gitops directory
+	•	Argo CD continuously watches the fintech-gitops directory
 	•	Any change to manifests or Helm values is automatically reconciled
-	•	Dev and Prod environments are managed independently
+	•	Development and Production environments are managed independently
 
-Check applications
+Check Applications
 
 kubectl -n argocd get applications
 
-Sync manually (if needed)
+Manual Sync (If Required)
 
 argocd app sync loki-prod
 
@@ -177,13 +185,13 @@ argocd app sync loki-prod
 
 Observability
 
-Monitoring (Prometheus)
+Monitoring (Prometheus & Grafana)
 	•	Installed using kube-prometheus-stack
 	•	Collects:
 	•	Cluster metrics
 	•	Node metrics
 	•	Application metrics
-	•	Grafana is included for visualization
+	•	Grafana included for dashboards and visualization
 
 Logging (Loki)
 	•	Loki runs in SingleBinary mode
@@ -210,11 +218,17 @@ Security Model
 
 Environments
 
-Dev
+Development
 	•	Lightweight workloads
 	•	Minimal observability
 
-Prod
+Production
 	•	Full monitoring and logging
 	•	Persistent storage
 	•	S3-backed log retention
+
+⸻
+
+Status
+
+This repository represents an actively evolving production-grade fintech platform. Additional services, scaling strategies, and security enhancements will be added incrementally.
