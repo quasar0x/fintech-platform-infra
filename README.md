@@ -26,37 +26,37 @@ This is not a demo setup — it is structured the way a real production fintech 
 Technology Stack
 
 Infrastructure
-	•	AWS
-	•	Amazon EKS
-	•	EC2
-	•	EBS (via CSI Driver)
-	•	S3
-	•	IAM
-	•	ECR
-	•	RDS
-	•	Terraform
+- AWS
+- Amazon EKS
+- EC2
+- EBS (via CSI Driver)
+- S3
+- IAM
+- ECR
+- RDS
+- Terraform
 
 Platform & Delivery
-	•	Kubernetes
-	•	Helm
-	•	Argo CD (GitOps)
-	•	GitHub Actions (CI)
+- Kubernetes
+- Helm
+- Argo CD (GitOps)
+- GitHub Actions (CI)
 
 Observability
-	•	Prometheus
-	•	Grafana
-	•	Loki
-	•	Promtail
+- Prometheus
+- Grafana
+- Loki
+- Promtail
 
 Infrastructure Provisioning (Terraform)
 
 Terraform is used to provision all AWS resources, including:
-	•	VPC and networking
-	•	Amazon EKS cluster and managed node groups
-	•	IAM roles and policies
-	•	Amazon ECR repositories
-	•	Amazon RDS databases
-	•	Amazon S3 bucket for Loki log storage
+- VPC and networking
+- Amazon EKS cluster and managed node groups
+- IAM roles and policies
+- Amazon ECR repositories
+- Amazon RDS databases
+- Amazon S3 bucket for Loki log storage
 
 Deploy Infrastructure (Production)
 
@@ -71,43 +71,43 @@ terraform apply prod.tfplan
 ⸻
 
 Kubernetes Platform (EKS)
-	•	Runs on Amazon EKS
-	•	Uses managed node groups
-	•	Persistent storage provided by AWS EBS CSI driver
-	•	Default StorageClass: gp2-csi
+- Runs on Amazon EKS
+- Uses managed node groups
+- Persistent storage provided by AWS EBS CSI driver
+- Default StorageClass: gp2-csi
 
 ⸻
 
 Microservices
 
 The platform currently runs the following services:
-	•	API Gateway
-	•	Authentication Service
-	•	User Service
-	•	Payments Service
+- API Gateway
+- Authentication Service
+- User Service
+- Payments Service
 
 Each service:
-	•	Runs as a Kubernetes Deployment
-	•	Uses container images stored in Amazon ECR
-	•	Is deployed via Argo CD using GitOps principles
+- Runs as a Kubernetes Deployment
+- Uses container images stored in Amazon ECR
+- Is deployed via Argo CD using GitOps principles
 
 ⸻
 
 CI – GitHub Actions
 
 Each microservice includes a CI pipeline that:
-	1.	Builds a Docker image
-	2.	Authenticates to AWS using OIDC
-	3.	Pushes the image to Amazon ECR
+- Builds a Docker image
+- Authenticates to AWS using OIDC
+- Pushes the image to Amazon ECR
 
 No long-lived AWS credentials are used.
 
 ⸻
 
 CD – GitOps with Argo CD
-	•	Argo CD continuously watches the fintech-gitops directory
-	•	Any change to manifests or Helm values is automatically reconciled
-	•	Development and Production environments are managed independently
+- Argo CD continuously watches the fintech-gitops directory
+- Any change to manifests or Helm values is automatically reconciled
+- Development and Production environments are managed independently
 
 Check Applications
 
@@ -123,46 +123,46 @@ argocd app sync loki-prod
 Observability
 
 Monitoring (Prometheus & Grafana)
-	•	Installed using kube-prometheus-stack
-	•	Collects:
-	•	Cluster metrics
-	•	Node metrics
-	•	Application metrics
-	•	Grafana included for dashboards and visualization
+- Installed using kube-prometheus-stack
+- Collects:
+- Cluster metrics
+- Node metrics
+- Application metrics
+- Grafana included for dashboards and visualization
 
 Logging (Loki)
-	•	Loki runs in SingleBinary mode
-	•	Logs are stored in Amazon S3
-	•	Uses IRSA for secure AWS access
-	•	Persistent volume backed by EBS
+- Loki runs in SingleBinary mode
+- Logs are stored in Amazon S3
+- Uses IRSA for secure AWS access
+- Persistent volume backed by EBS
 
 Log Shipping (Promtail)
-	•	Runs as a DaemonSet
-	•	Collects logs from all Kubernetes nodes
-	•	Pushes logs to Loki
+- Runs as a DaemonSet
+- Collects logs from all Kubernetes nodes
+- Pushes logs to Loki
 
 ⸻
 
 Security Model
-	•	IAM Roles for Service Accounts (IRSA) used throughout
-	•	No static AWS credentials inside Kubernetes
-	•	Separate IAM roles for:
-	•	Loki → S3 access
-	•	GitHub Actions → ECR access
-	•	Least-privilege IAM policies applied
+- IAM Roles for Service Accounts (IRSA) used throughout
+- No static AWS credentials inside Kubernetes
+- Separate IAM roles for:
+- Loki → S3 access
+- GitHub Actions → ECR access
+- Least-privilege IAM policies applied
 
 ⸻
 
 Environments
 
 Development
-	•	Lightweight workloads
-	•	Minimal observability
+- Lightweight workloads
+- Minimal observability
 
 Production
-	•	Full monitoring and logging
-	•	Persistent storage
-	•	S3-backed log retention
+- Full monitoring and logging
+- Persistent storage
+- S3-backed log retention
 
 ⸻
 
