@@ -1,0 +1,48 @@
+title = "fintech-platform gitleaks config"
+
+# Use the official gitleaks rules as a base
+[extend]
+useDefault = true
+
+# -------------------------
+# Allowlist (reduce noise)
+# -------------------------
+[allowlist]
+description = "False positives and safe files"
+paths = [
+    '''^README\.md$''',
+    '''^docs/''',
+    '''^fintech-gitops/.*\.yaml$''', # GitOps manifests (no secrets in plain text)
+    '''^charts/''',
+    '''^\.github/''',
+]
+
+regexes = ['''EXAMPLE_.*''', '''DUMMY_.*''', '''TEST_.*''']
+
+# -------------------------
+# Custom rules (fintech)
+# -------------------------
+
+[[rules]]
+id = "private-key"
+description = "Private key"
+regex = '''-----BEGIN( RSA)? PRIVATE KEY-----'''
+tags = ["key", "critical"]
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["aws", "credential", "critical"]
+
+[[rules]]
+id = "jwt-secret"
+description = "JWT Secret"
+regex = '''(?i)(jwt|token|secret)[^a-zA-Z0-9]{0,3}['"]?[a-zA-Z0-9-_]{16,}'''
+tags = ["jwt", "auth"]
+
+[[rules]]
+id = "database-password"
+description = "Database password"
+regex = '''(?i)(db|database|postgres|mysql|rds)[^a-zA-Z0-9]{0,3}(password|pwd|secret)[^a-zA-Z0-9]{0,3}['"]?[^\s'"]{8,}'''
+tags = ["database", "credential"]
