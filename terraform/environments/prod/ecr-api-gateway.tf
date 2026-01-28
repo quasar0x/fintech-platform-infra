@@ -1,5 +1,5 @@
-resource "aws_ecr_repository" "payments_service" {
-  name                 = "payments-service"
+resource "aws_ecr_repository" "api_gateway" {
+  name                 = "api-gateway"
   force_delete         = true
   image_tag_mutability = "IMMUTABLE"
 
@@ -12,8 +12,8 @@ resource "aws_ecr_repository" "payments_service" {
   }
 }
 
-resource "aws_ecr_lifecycle_policy" "payments_service" {
-  repository = aws_ecr_repository.payments_service.name
+resource "aws_ecr_lifecycle_policy" "api_gateway" {
+  repository = aws_ecr_repository.api_gateway.name
 
   policy = jsonencode({
     rules = [
