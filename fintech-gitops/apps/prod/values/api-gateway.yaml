@@ -1,10 +1,10 @@
 nameOverride: api-gateway
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/api-gateway
-  tag: sha-40813eb
+  tag: sha-2ba8769
   pullPolicy: IfNotPresent
 
 service:

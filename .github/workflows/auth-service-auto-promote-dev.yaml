@@ -1,54 +1,143 @@
-name: Auto-promote auth-service to dev (GitOps)
+name: Auto-promote auth-service to dev (GitOps) [digest-verified]
 
 on:
-    workflow_run:
-        workflows: ["auth-service (build & push to ECR)"]
-        types: [completed]
+  workflow_run:
+    workflows: ["auth-service (secure CI)"]
+    types: [completed]
+    branches: [develop]
 
 permissions:
-    contents: write
+  contents: write
+  id-token: write
 
 concurrency:
-    group: auth-service-auto-promote-dev
-    cancel-in-progress: false
+  group: auth-service-auto-promote-dev
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "461508717137"
+  ECR_REPOSITORY: auth-service
+  VALUES_FILE: fintech-gitops/apps/dev/values/auth-service.yaml
 
 jobs:
-    promote-dev:
-        if: >
-            github.event.workflow_run.conclusion == 'success' &&
-            github.event.workflow_run.head_branch == 'develop'
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout develop
-              uses: actions/checkout@v4
-              with:
-                  ref: develop
+  promote-dev:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'develop' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
 
-            - name: Update dev values image tag (sha-<short>) and push to develop
-              shell: bash
-              run: |
-                  set -euo pipefail
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::461508717137:role/github-actions-ecr-push
+          aws-region: ${{ env.AWS_REGION }}
 
-                  SHORT_SHA="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
-                  TAG="sha-${SHORT_SHA}"
-                  VALUES_FILE="fintech-gitops/apps/dev/values/auth-service.yaml"
+      - name: Compute tag from workflow SHA
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="$(echo "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
+          echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
-                  if [ ! -f "$VALUES_FILE" ]; then
-                    echo "ERROR: values file not found: $VALUES_FILE"
-                    exit 1
-                  fi
+      - name: Verify tag exists and fetch digest from ECR
+        id: digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          echo "Checking ECR for ${ECR_REPOSITORY}:${TAG} ..."
 
-                  echo "Promoting auth-service to DEV tag: $TAG"
-                  sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$VALUES_FILE"
-                  rm -f "${VALUES_FILE}.bak"
+          aws ecr describe-images \
+            --region "${AWS_REGION}" \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids imageTag="${TAG}" >/dev/null
 
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          DIGEST="$(aws ecr describe-images \
+            --region "${AWS_REGION}" \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids imageTag="${TAG}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)"
 
-                  git add "$VALUES_FILE"
-                  git commit -m "chore(dev): promote auth-service to ${TAG}" || {
-                    echo "No change to commit."
-                    exit 0
-                  }
+          if [[ -z "${DIGEST}" || "${DIGEST}" == "None" ]]; then
+            echo "ERROR: Could not determine digest for ${ECR_REPOSITORY}:${TAG}"
+            exit 1
+          fi
 
-                  git push origin develop
+          echo "✅ Tag exists. Digest: ${DIGEST}"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Print digest reference (info)
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          DIGEST="${{ steps.digest.outputs.digest }}"
+          IMAGE_REF="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}@${DIGEST}"
+          echo "Promoting auth-service tag=${TAG} digest=${DIGEST}"
+          echo "Image ref (digest): ${IMAGE_REF}"
+
+      - name: Update values + commit + push (conflict-proof retries)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${{ steps.tag.outputs.tag }}"
+          FILE="${{ env.VALUES_FILE }}"
+
+          if [ ! -f "$FILE" ]; then
+            echo "ERROR: values file not found: $FILE"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          MAX_ATTEMPTS=5
+          ATTEMPT=1
+
+          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+            echo "---- Attempt ${ATTEMPT}/${MAX_ATTEMPTS} ----"
+
+            git fetch origin develop
+            git reset --hard origin/develop
+
+            echo "Before:"
+            grep -nE "^[[:space:]]*tag:" "$FILE" || true
+
+            sed -i.bak -E "s/^([[:space:]]*tag:).*/\1 ${TAG}/" "$FILE"
+            rm -f "${FILE}.bak"
+
+            echo "After:"
+            grep -nE "^[[:space:]]*tag:" "$FILE" || true
+
+            git add "$FILE"
+
+            if git diff --cached --quiet; then
+              echo "No change to commit. Already at ${TAG}."
+              exit 0
+            fi
+
+            git commit -m "chore(dev): promote auth-service to ${TAG} (digest verified)"
+
+            if git push origin HEAD:develop; then
+              echo "✅ Pushed successfully."
+              exit 0
+            fi
+
+            echo "Push failed (branch moved). Retrying..."
+            sleep $((ATTEMPT * 2))
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+
+          echo "ERROR: Failed to push after ${MAX_ATTEMPTS} attempts."
+          exit 1

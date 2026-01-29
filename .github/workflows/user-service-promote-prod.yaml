@@ -1,0 +1,29 @@
+name: Promote user-service to prod (GitOps) [verified]
+on:
+    workflow_dispatch:
+        inputs:
+            image_tag:
+                description: "ECR tag to promote (example: sha-24482af)"
+                required: true
+            environment:
+                description: "Environment folder under fintech-gitops/apps (example: prod)"
+                required: true
+                default: "prod"
+permissions:
+    contents: write
+    pull-requests: write
+    id-token: write
+jobs:
+    call-verified-promote:
+        uses: ./.github/workflows/_reusable-promote-prod-verified.yaml
+        with:
+            service_name: user-service
+            values_file: fintech-gitops/apps/${{ inputs.environment }}/values/user-service.yaml
+            ecr_repository: user-service
+            image_tag: ${{ inputs.image_tag }}
+            workflow_file: .github/workflows/_reusable-secure-service-ci.yaml
+            aws_region: us-east-1
+            aws_account_id: "461508717137"
+            role_to_assume: arn:aws:iam::461508717137:role/github-actions-ecr-push
+            environment: ${{ inputs.environment }}
+        secrets: inherit

@@ -72,15 +72,20 @@ func main() {
 	accessTTL := mustDurationSeconds(getenv("ACCESS_TOKEN_TTL_SECONDS", "900"))
 	refreshTTL := mustDurationSeconds(getenv("REFRESH_TOKEN_TTL_SECONDS", "604800"))
 
-	privateKey, err := parseRSAPrivateKeyFromPEM(os.Getenv("JWT_PRIVATE_KEY"))
+	// --- Load JWT keys ---
+	// Private key: prefer file path (K8s secret mount) fallback to env var for local/dev
+	privateKey, err := loadRSAPrivateKey()
 	if err != nil {
 		log.Fatalf("JWT_PRIVATE_KEY invalid/missing: %v", err)
 	}
+
+	// Public key: env var (safe to keep in values.yaml as it's public)
 	publicKey, err := parseRSAPublicKeyFromPEM(os.Getenv("JWT_PUBLIC_KEY"))
 	if err != nil {
 		log.Fatalf("JWT_PUBLIC_KEY invalid/missing: %v", err)
 	}
 
+	// --- DB ---
 	dsn, err := buildPostgresDSNFromEnv()
 	if err != nil {
 		log.Fatalf("DB env invalid/missing: %v", err)
@@ -497,6 +502,39 @@ func buildPostgresDSNFromEnv() (string, error) {
 	return fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=%s",
 		host, port, name, user, pass, ssl,
 	), nil
+}
+
+// --- JWT key loading helpers ---
+
+func loadRSAPrivateKey() (*rsa.PrivateKey, error) {
+	// Preferred: file path (Kubernetes secret mount).
+	// If JWT_PRIVATE_KEY_PATH is not set, we default to the common mount path.
+	path := strings.TrimSpace(os.Getenv("JWT_PRIVATE_KEY_PATH"))
+	if path == "" {
+		path = "/var/run/secrets/jwt/jwt_private.pem"
+	}
+
+	// Try reading from file first
+	b, err := os.ReadFile(path)
+	if err == nil {
+		if strings.TrimSpace(string(b)) == "" {
+			// File exists but empty -> treat as invalid and fallback to env
+			log.Printf("warning: JWT private key file exists but is empty: %s (will fallback to env JWT_PRIVATE_KEY)", path)
+		} else {
+			log.Printf("loaded JWT private key from file: %s", path)
+			return parseRSAPrivateKeyFromPEM(string(b))
+		}
+	} else {
+		log.Printf("warning: unable to read JWT private key file %s: %v (will fallback to env JWT_PRIVATE_KEY)", path, err)
+	}
+
+	// Fallback: env var (useful for local dev)
+	pemStr := os.Getenv("JWT_PRIVATE_KEY")
+	if strings.TrimSpace(pemStr) == "" {
+		return nil, fmt.Errorf("private key not found (file=%s unreadable/empty and JWT_PRIVATE_KEY env is empty)", path)
+	}
+	log.Printf("loaded JWT private key from env JWT_PRIVATE_KEY (fallback)")
+	return parseRSAPrivateKeyFromPEM(pemStr)
 }
 
 func parseRSAPrivateKeyFromPEM(pemStr string) (*rsa.PrivateKey, error) {

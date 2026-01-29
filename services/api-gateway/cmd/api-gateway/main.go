@@ -40,6 +40,15 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	// root endpoint (useful for scanners/load balancers)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"service": cfg.AppName,
+			"env":     cfg.Environment,
+			"routes":  []string{"/healthz", "/readyz", "/v1/ping", "/v1/me"},
+		})
+	})
+
 	// health endpoints (NO auth)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -49,13 +58,13 @@ func main() {
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		// In real life: check dependencies (db/cache/queue). For now: always ready.
+		// In real life: check dependencies (db/cache/queue) For now: always ready
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status": "ready",
 		})
 	})
 
-	// public endpoint.
+	// public endpoint
 	mux.HandleFunc("/v1/ping", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"message": "pong",
@@ -119,7 +128,7 @@ func parseRSAPublicKeyFromPEM(pemStr string) (*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("failed to decode PEM block")
 	}
 
-	// Expect PKIX "PUBLIC KEY"
+	// Expect PKIX "PUBLIC KEY".
 	pubAny, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err

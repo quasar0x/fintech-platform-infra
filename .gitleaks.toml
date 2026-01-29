@@ -1,0 +1,70 @@
+title = "fintech-platform-infra gitleaks config"
+
+# Use the official gitleaks rules as a base
+[extend]
+useDefault = true
+
+# -------------------------
+# Allowlist (reduce noise safely)
+# -------------------------
+[allowlist]
+description = "Allow sealed secrets + reduce obvious noise without hiding real leaks"
+
+# Only allowlist files that are safe by design.
+# DO NOT allowlist all YAMLs or entire folders broadly.
+paths = [
+    # Docs
+    '''^README\.md$''',
+    '''^services/[^/]+/README\.md$''',
+
+    # Helm chart templates are usually safe (but still scan values files!)
+    '''^fintech-gitops/charts/fintech-service/templates/''',
+
+    # Observability values (these can contain creds sometimes, so DON'T blanket-allowlist the folder)
+    # If you ever put credentials into these files, gitleaks should catch it.
+    # (so we do NOT add fintech-gitops/observability to allowlist)
+
+    # ✅ Only SealedSecrets (encryptedData) are allowed in git
+    '''^fintech-gitops/apps/dev/secrets/.*-sealedsecret\.ya?ml$''',
+    '''^fintech-gitops/apps/prod/secrets/.*-sealedsecret\.ya?ml$''',
+]
+
+# Ignore obvious placeholders (keep minimal to avoid masking real leaks)
+regexes = [
+    '''(?i)example(_|-)?(key|token|secret|password).*''',
+    '''(?i)dummy(_|-)?(key|token|secret|password).*''',
+    '''(?i)test(_|-)?(key|token|secret|password).*''',
+    '''(?i)changeme''',
+]
+
+# -------------------------
+# Custom rules (fintech)
+# -------------------------
+
+# Private keys should ALWAYS be flagged if they appear anywhere.
+[[rules]]
+id = "private-key"
+description = "Private key blocks"
+regex = '''-----BEGIN( RSA)? PRIVATE KEY-----'''
+tags = ["key", "critical"]
+
+# AWS Access Keys
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["aws", "credential", "critical"]
+
+# JWT-ish secrets (broad, so it can generate noise; keep it but don’t over-allowlist)
+[[rules]]
+id = "jwt-secret"
+description = "JWT secret or token-like value"
+regex = '''(?i)\b(jwt|token|secret)\b[^a-zA-Z0-9]{0,5}['"]?[A-Za-z0-9._=-]{16,}['"]?'''
+tags = ["jwt", "auth"]
+
+# DB password patterns
+[[rules]]
+id = "database-password"
+description = "Database password"
+regex = '''(?i)\b(db|database|postgres|mysql|rds)\b[^a-zA-Z0-9]{0,10}\b(password|passwd|pwd|secret)\b[^a-zA-Z0-9]{0,5}['"]?[^\s'"]{8,}['"]?'''
+tags = ["database", "credential"]

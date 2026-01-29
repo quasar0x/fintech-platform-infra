@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki-prod
+  namespace: argocd
+spec:
+  project: fintech
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring-prod
+
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: 6.16.0
+      helm:
+        releaseName: loki-prod
+        valueFiles:
+          - $values/fintech-gitops/observability/logging/loki/values-prod.yaml
+    - repoURL: https://github.com/quasar0x/fintech-platform-infra.git
+      targetRevision: main
+      ref: values
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

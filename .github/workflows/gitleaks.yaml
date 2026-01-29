@@ -1,0 +1,35 @@
+name: gitleaks
+
+on:
+    pull_request:
+    push:
+    workflow_dispatch:
+    schedule:
+        # Nightly @ 01:30 UTC (adjust if you want)
+        - cron: "30 1 * * *"
+
+permissions:
+    contents: read
+    security-events: write
+
+concurrency:
+    group: gitleaks-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    scan:
+        name: Secret scan (gitleaks)
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout (full history)
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Run gitleaks
+              uses: gitleaks/gitleaks-action@v2
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  # Only needed if you're using GitHub org scanning that requires a license.
+                  # If you don't have/need it, it's safe to leave as-is (empty) or remove this line.
+                  GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
