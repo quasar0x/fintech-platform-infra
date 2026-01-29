@@ -1,4 +1,0 @@
-# format: <old>=<new>
-# Put the EXACT leaked values on the left (copy from gitleaks "View Secret")
-# Example:
-# mysupersecretjwtvalue=REDACTED

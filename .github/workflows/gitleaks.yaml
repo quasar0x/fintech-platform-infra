@@ -5,8 +5,7 @@ on:
     push:
     workflow_dispatch:
     schedule:
-        # Nightly @ 01:30 UTC (adjust if you want)
-        - cron: "30 1 * * *"
+        - cron: "0 2 1 * *" # Monthly (1st day)
 
 permissions:
     contents: read
