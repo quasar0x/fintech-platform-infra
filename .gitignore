@@ -1,4 +1,102 @@
-**/*.pem
-**/*jwt*
+############################
+# Secrets & Credentials
+############################
 .env
 .env.*
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+**/*.pfx
+**/*jwt*
+**/*secret*
+**/*password*
+**/*token*
+**/*credentials*
+
+############################
+# Terraform
+############################
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/crash.log
+**/crash.*.log
+terraform.tfvars
+terraform.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+############################
+# Kubernetes / Helm
+############################
+**/secrets/*.yaml
+**/secrets/*.yml
+**/*sealedsecret*.bak
+**/*.orig
+**/*.retry
+
+# (SealedSecrets YAMLs are allowed — plain Secrets are not)
+# NOTE: keep sealedsecret.yaml files tracked
+
+############################
+# Go (services)
+############################
+**/bin/
+**/dist/
+**/vendor/
+**/*.exe
+**/*.exe~
+**/*.dll
+**/*.so
+**/*.dylib
+**/*.test
+**/*.out
+coverage.out
+coverage.txt
+
+############################
+# Docker
+############################
+**/.dockerignore~
+**/docker-compose.override.yml
+**/docker-compose.override.yaml
+
+############################
+# CI / Security Tools
+############################
+.gitleaks-report.json
+.trivyignore
+.trivy-cache/
+.snyk
+.semgrep/
+
+############################
+# Logs & Runtime Artifacts
+############################
+*.log
+logs/
+tmp/
+temp/
+.cache/
+
+############################
+# OS / Editor Noise
+############################
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
+*.tmp
+
+############################
+# Git
+############################
+.git-filter-repo/
