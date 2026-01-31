@@ -12,7 +12,7 @@ spec:
     helm:
       values: |
         autoDiscovery:
-          clusterName: fintech-platform-cluster  # <-- CHANGE to your real EKS cluster name
+          clusterName: fintech-platform-cluster
 
         awsRegion: us-east-1
 
