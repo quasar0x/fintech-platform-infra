@@ -6,8 +6,14 @@ data "aws_eks_cluster_auth" "cluster" {
   name = aws_eks_cluster.this.name
 }
 
+locals {
+  # The OIDC issuer URL looks like:
+  # https://oidc.eks.<region>.amazonaws.com/id/<OIDC_ID>
+  oidc_issuer_url = data.aws_eks_cluster.cluster.identity[0].oidc[0].issuer
+}
+
 resource "aws_iam_openid_connect_provider" "oidc" {
-  url = data.aws_eks_cluster.cluster.identity[0].oidc[0].issuer
+  url = local.oidc_issuer_url
 
   client_id_list = [
     "sts.amazonaws.com"

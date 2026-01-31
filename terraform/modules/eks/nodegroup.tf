@@ -25,5 +25,9 @@ resource "aws_eks_node_group" "default" {
 
   tags = {
     Name = "${var.project_name}-eks-node-group"
+
+    # ✅ REQUIRED: Cluster Autoscaler auto-discovery tags
+    "k8s.io/cluster-autoscaler/enabled"                      = "true"
+    "k8s.io/cluster-autoscaler/${aws_eks_cluster.this.name}" = "owned"
   }
 }
