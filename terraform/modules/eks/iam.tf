@@ -22,7 +22,11 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 }
 
 ############################
-# EKS Node Group IAM Role
+# EKS Managed Node Group IAM Role
+#
+# Keep this ONLY if you will still run a small managed node group
+# for "system" workloads (CoreDNS, kube-proxy, CNI, etc.).
+# Karpenter uses its own node role defined in karpenter.tf.
 ############################
 resource "aws_iam_role" "eks_node" {
   name = "${var.project_name}-eks-node-role"

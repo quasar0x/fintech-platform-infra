@@ -19,9 +19,9 @@ module "eks" {
   vpc_id            = module.vpc.vpc_id
   private_subnets   = module.vpc.private_subnets
   cluster_version   = var.cluster_version
-  node_desired_size = 2
-  node_min_size     = 2
-  node_max_size     = 10
+  node_desired_size = 1
+  node_min_size     = 1
+  node_max_size     = 2
 }
 
 module "github_actions_ecr" {
