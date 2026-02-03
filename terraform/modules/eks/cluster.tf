@@ -4,7 +4,8 @@ resource "aws_eks_cluster" "this" {
   version  = var.cluster_version
 
   vpc_config {
-    subnet_ids = var.private_subnets
+    subnet_ids         = var.private_subnets
+    security_group_ids = [aws_security_group.nodes.id]
   }
 
   depends_on = [

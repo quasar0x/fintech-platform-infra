@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: fintech
+  source:
+    repoURL: https://charts.karpenter.sh
+    chart: karpenter
+    targetRevision: 0.37.0
+    helm:
+      values: |
+        serviceAccount:
+          create: true
+          name: karpenter
+          annotations:
+            eks.amazonaws.com/role-arn: arn:aws:iam::461508717137:role/fintech-platform-karpenter-controller-irsa
+
+        settings:
+          clusterName: fintech-platform-cluster
+          clusterEndpoint: https://REPLACE_ME.gr7.us-east-1.eks.amazonaws.com
+          interruptionQueueName: fintech-platform-karpenter-interruptions
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: karpenter
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
