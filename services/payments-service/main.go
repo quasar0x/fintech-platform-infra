@@ -13,6 +13,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type appState struct {
@@ -22,9 +23,9 @@ type appState struct {
 
 type createPaymentRequest struct {
 	UserID   string `json:"user_id"`
-	Amount   int64  `json:"amount"`   // store in minor units (e.g.,kobo/cents)
-	Currency string `json:"currency"` // "NGN", "USD"
-	Ref      string `json:"ref"`      // client reference / idempotency-ish
+	Amount   int64  `json:"amount"`
+	Currency string `json:"currency"`
+	Ref      string `json:"ref"`
 }
 
 type payment struct {
@@ -42,6 +43,16 @@ func main() {
 	app := getenv("APP_NAME", "payments-service")
 	env := getenv("ENVIRONMENT", "dev")
 
+	// ---- OpenTelemetry (minimal init) ----
+	ctx := context.Background()
+	tcfg := loadTelemetryConfig()
+	shutdown, err := initTracer(ctx, tcfg)
+	if err != nil {
+		log.Fatalf("otel init error: %v", err)
+	}
+	defer func() { _ = shutdown(context.Background()) }()
+	// -------------------------------------
+
 	dsn, err := buildPostgresDSNFromEnv()
 	if err != nil {
 		log.Fatalf("config error: %v", err)
@@ -57,7 +68,6 @@ func main() {
 
 	st := &appState{db: db, dbReady: false}
 
-	// Background readiness ping
 	go func() {
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()
@@ -69,7 +79,6 @@ func main() {
 		}
 	}()
 
-	// Ensure schema exists (safe / idempotent)
 	if err := ensureSchema(db); err != nil {
 		log.Fatalf("schema init failed: %v", err)
 	}
@@ -92,16 +101,18 @@ func main() {
 		writeText(w, http.StatusOK, fmt.Sprintf("%s running (%s)", app, env))
 	})
 
-	// API
-	mux.HandleFunc("/v1/payments", st.handlePayments)     // POST create, GET list (optional query)
-	mux.HandleFunc("/v1/payments/", st.handlePaymentByID) // GET /v1/payments/{id}
+	mux.HandleFunc("/v1/payments", st.handlePayments)
+	mux.HandleFunc("/v1/payments/", st.handlePaymentByID)
 
 	addr := ":" + port
 	log.Printf("starting %s on %s (env=%s)", app, addr, env)
 
+	handler := otelhttp.NewHandler(mux, "payments-service")
+	handler = loggingMiddleware(app, env, handler)
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           loggingMiddleware(app, env, mux),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -149,7 +160,6 @@ func (st *appState) createPayment(w http.ResponseWriter, r *http.Request) {
 		&p.ID, &p.UserID, &p.Amount, &p.Currency, &p.Status, &p.Ref, &p.CreatedAt,
 	)
 	if err != nil {
-		// unique ref per user (see schema) treat duplicates as conflict
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			http.Error(w, "duplicate ref", http.StatusConflict)
 			return
@@ -212,7 +222,6 @@ func (st *appState) handlePaymentByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// path: /v1/payments/{id}
 	id := strings.TrimPrefix(r.URL.Path, "/v1/payments/")
 	id = strings.TrimSpace(id)
 	if id == "" {
@@ -246,7 +255,6 @@ func ensureSchema(db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// keep it simple: one table
 	_, err := db.ExecContext(ctx, `
 		CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -260,7 +268,6 @@ func ensureSchema(db *sql.DB) error {
 			created_at timestamptz NOT NULL DEFAULT now()
 		);
 
-		-- prevent duplicate "ref" per user (acts like lightweight idempotency)
 		CREATE UNIQUE INDEX IF NOT EXISTS payments_user_ref_uq ON payments(user_id, ref);
 	`)
 	return err

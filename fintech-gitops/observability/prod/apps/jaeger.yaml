@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jaeger
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "19"
+spec:
+  project: fintech
+  source:
+    repoURL: https://jaegertracing.github.io/helm-charts
+    chart: jaeger
+    targetRevision: 3.4.1
+    helm:
+      values: |
+        storage:
+          type: elasticsearch
+
+        # Jaeger chart expects "elasticsearch" even if it's OpenSearch-compatible
+        elasticsearch:
+          host: opensearch-cluster-master.observability.svc.cluster.local
+          port: 9200
+          scheme: http
+          # If you enable auth in OpenSearch, set these:
+          # user: admin
+          # password: admin
+
+        collector:
+          service:
+            otlp:
+              grpc:
+                name: otlp-grpc
+                port: 4317
+              http:
+                name: otlp-http
+                port: 4318
+
+        query:
+          service:
+            type: ClusterIP
+
+        agent:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

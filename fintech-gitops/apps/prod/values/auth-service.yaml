@@ -75,3 +75,13 @@ livenessProbe:
   path: /healthz
   initialDelaySeconds: 10
   periodSeconds: 10
+
+extraEnv:
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: "http://otel-collector.observability.svc.cluster.local:4317"
+  - name: OTEL_EXPORTER_OTLP_PROTOCOL
+    value: "grpc"
+  - name: OTEL_SERVICE_NAME
+    value: "auth-service"
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: "deployment.environment=prod"

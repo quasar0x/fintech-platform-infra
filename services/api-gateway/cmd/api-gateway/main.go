@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Config struct {
@@ -38,6 +39,16 @@ func main() {
 		log.Fatalf("config error: %v", err)
 	}
 
+	// ---- OpenTelemetry (minimal init) ----
+	ctx := context.Background()
+	tcfg := loadTelemetryConfig()
+	shutdown, err := initTracer(ctx, tcfg)
+	if err != nil {
+		log.Fatalf("otel init error: %v", err)
+	}
+	defer func() { _ = shutdown(context.Background()) }()
+	// -------------------------------------
+
 	mux := http.NewServeMux()
 
 	// root endpoint (useful for scanners/load balancers)
@@ -58,7 +69,6 @@ func main() {
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		// In real life: check dependencies (db/cache/queue) For now: always ready
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status": "ready",
 		})
@@ -82,9 +92,13 @@ func main() {
 		})
 	})))
 
+	// Wrap inbound HTTP with OTel and keep your logging middleware
+	handler := otelhttp.NewHandler(mux, "api-gateway")
+	handler = loggingMiddleware(cfg, handler)
+
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           loggingMiddleware(cfg, mux),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -128,7 +142,6 @@ func parseRSAPublicKeyFromPEM(pemStr string) (*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("failed to decode PEM block")
 	}
 
-	// Expect PKIX "PUBLIC KEY".
 	pubAny, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err
@@ -138,7 +151,6 @@ func parseRSAPublicKeyFromPEM(pemStr string) (*rsa.PublicKey, error) {
 	if !ok {
 		return nil, fmt.Errorf("not an RSA public key")
 	}
-
 	return pub, nil
 }
 
@@ -152,11 +164,9 @@ func authMiddleware(cfg Config, next http.Handler) http.Handler {
 			return
 		}
 
-		// "Bearer " is always 7 chars; we already validated the prefix case-insensitively.
 		tokenStr := strings.TrimSpace(authz[7:])
 
 		tok, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
-			// enforce RS256
 			if t.Method.Alg() != jwt.SigningMethodRS256.Alg() {
 				return nil, fmt.Errorf("unexpected alg: %s", t.Method.Alg())
 			}
@@ -175,7 +185,6 @@ func authMiddleware(cfg Config, next http.Handler) http.Handler {
 		}
 
 		claims, _ := tok.Claims.(jwt.MapClaims)
-
 		ctx := withClaims(r.Context(), claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -187,7 +196,6 @@ func loggingMiddleware(cfg Config, next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		d := time.Since(start)
 
-		// Simple JSON-shaped log line (good enough for now; later we can add request IDs)
 		log.Printf(`{"app":"%s","env":"%s","method":"%s","path":"%s","duration_ms":%d}`,
 			cfg.AppName, cfg.Environment, r.Method, r.URL.Path, d.Milliseconds())
 	})

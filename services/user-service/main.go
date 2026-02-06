@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type appState struct {
@@ -22,12 +23,21 @@ func main() {
 	app := getenv("APP_NAME", "user-service")
 	env := getenv("ENVIRONMENT", "dev")
 
+	// ---- OpenTelemetry (minimal init) ----
+	ctx := context.Background()
+	tcfg := loadTelemetryConfig()
+	shutdown, err := initTracer(ctx, tcfg)
+	if err != nil {
+		log.Fatalf("otel init error: %v", err)
+	}
+	defer func() { _ = shutdown(context.Background()) }()
+	// -------------------------------------
+
 	dsn, err := buildPostgresDSNFromEnv()
 	if err != nil {
 		log.Fatalf("config error: %v", err)
 	}
 
-	// Connect DB
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatalf("db open error: %v", err)
@@ -38,7 +48,6 @@ func main() {
 
 	state := &appState{db: db, dbReady: false}
 
-	// background ping loop
 	go func() {
 		t := time.NewTicker(5 * time.Second)
 		defer t.Stop()
@@ -77,7 +86,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: otelhttp.NewHandler(mux, "user-service"),
 	}
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -97,7 +106,6 @@ func buildPostgresDSNFromEnv() (string, error) {
 		return "", fmt.Errorf("missing required DB env vars (DB_HOST/DB_NAME/DB_USER/DB_PASSWORD)")
 	}
 
-	// pgx DSN
 	return fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=%s",
 		host, port, name, user, pass, ssl,
 	), nil
