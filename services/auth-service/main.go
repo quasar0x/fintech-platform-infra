@@ -20,6 +20,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -72,20 +73,26 @@ func main() {
 	accessTTL := mustDurationSeconds(getenv("ACCESS_TOKEN_TTL_SECONDS", "900"))
 	refreshTTL := mustDurationSeconds(getenv("REFRESH_TOKEN_TTL_SECONDS", "604800"))
 
-	// --- Load JWT keys ---
-	// Private key: prefer file path (K8s secret mount) fallback to env var for local/dev
+	// ---- OpenTelemetry (minimal init) ----
+	ctx := context.Background()
+	tcfg := loadTelemetryConfig()
+	shutdown, err := initTracer(ctx, tcfg)
+	if err != nil {
+		log.Fatalf("otel init error: %v", err)
+	}
+	defer func() { _ = shutdown(context.Background()) }()
+	// -------------------------------------
+
 	privateKey, err := loadRSAPrivateKey()
 	if err != nil {
 		log.Fatalf("JWT_PRIVATE_KEY invalid/missing: %v", err)
 	}
 
-	// Public key: env var (safe to keep in values.yaml as it's public)
 	publicKey, err := parseRSAPublicKeyFromPEM(os.Getenv("JWT_PUBLIC_KEY"))
 	if err != nil {
 		log.Fatalf("JWT_PUBLIC_KEY invalid/missing: %v", err)
 	}
 
-	// --- DB ---
 	dsn, err := buildPostgresDSNFromEnv()
 	if err != nil {
 		log.Fatalf("DB env invalid/missing: %v", err)
@@ -99,9 +106,9 @@ func main() {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	startupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
+	if err := db.PingContext(startupCtx); err != nil {
 		log.Fatalf("DB ping failed (startup): %v", err)
 	}
 
@@ -147,12 +154,18 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("starting %s on %s (env=%s)", st.appName, addr, st.env)
-	srv := &http.Server{Addr: addr, Handler: mux}
+
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: otelhttp.NewHandler(mux, "auth-service"),
+	}
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 }
+
+// ---- handlers unchanged below ----
 
 func (st *appState) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -504,31 +517,18 @@ func buildPostgresDSNFromEnv() (string, error) {
 	), nil
 }
 
-// --- JWT key loading helpers ---
-
 func loadRSAPrivateKey() (*rsa.PrivateKey, error) {
-	// Preferred: file path (Kubernetes secret mount).
-	// If JWT_PRIVATE_KEY_PATH is not set, we default to the common mount path.
 	path := strings.TrimSpace(os.Getenv("JWT_PRIVATE_KEY_PATH"))
 	if path == "" {
 		path = "/var/run/secrets/jwt/jwt_private.pem"
 	}
 
-	// Try reading from file first
 	b, err := os.ReadFile(path)
-	if err == nil {
-		if strings.TrimSpace(string(b)) == "" {
-			// File exists but empty -> treat as invalid and fallback to env
-			log.Printf("warning: JWT private key file exists but is empty: %s (will fallback to env JWT_PRIVATE_KEY)", path)
-		} else {
-			log.Printf("loaded JWT private key from file: %s", path)
-			return parseRSAPrivateKeyFromPEM(string(b))
-		}
-	} else {
-		log.Printf("warning: unable to read JWT private key file %s: %v (will fallback to env JWT_PRIVATE_KEY)", path, err)
+	if err == nil && strings.TrimSpace(string(b)) != "" {
+		log.Printf("loaded JWT private key from file: %s", path)
+		return parseRSAPrivateKeyFromPEM(string(b))
 	}
 
-	// Fallback: env var (useful for local dev)
 	pemStr := os.Getenv("JWT_PRIVATE_KEY")
 	if strings.TrimSpace(pemStr) == "" {
 		return nil, fmt.Errorf("private key not found (file=%s unreadable/empty and JWT_PRIVATE_KEY env is empty)", path)

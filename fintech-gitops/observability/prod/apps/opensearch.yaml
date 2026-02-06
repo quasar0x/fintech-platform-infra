@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opensearch
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "18"
+spec:
+  project: fintech
+  source:
+    repoURL: https://opensearch-project.github.io/helm-charts
+    chart: opensearch
+    targetRevision: 2.25.0
+    helm:
+      values: |
+        singleNode: true
+
+        replicas: 1
+
+        # persistence (EBS)
+        persistence:
+          enabled: true
+          size: 50Gi
+
+        resources:
+          requests:
+            cpu: 500m
+            memory: 2Gi
+          limits:
+            cpu: 2
+            memory: 4Gi
+
+        # keep it simple; you can harden later
+        extraEnvs:
+          - name: DISABLE_INSTALL_DEMO_CONFIG
+            value: "true"
+          - name: DISABLE_SECURITY_PLUGIN
+            value: "false"
+
+        service:
+          type: ClusterIP
+          ports:
+            - name: http
+              port: 9200
+              protocol: TCP
+            - name: transport
+              port: 9300
+              protocol: TCP
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
