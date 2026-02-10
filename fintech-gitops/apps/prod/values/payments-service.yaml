@@ -1,5 +1,5 @@
 nameOverride: payments-service
-replicaCount: 1
+replicaCount: 2
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/payments-service
@@ -11,6 +11,9 @@ service:
   targetPort: 8083
 
 containerPort: 8083
+
+ingress:
+  enabled: false
 
 env:
   APP_NAME: "payments-service"
@@ -47,6 +50,6 @@ extraEnv:
   - name: OTEL_EXPORTER_OTLP_PROTOCOL
     value: "grpc"
   - name: OTEL_SERVICE_NAME
-    value: "auth-service"
+    value: "payments-service"
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "deployment.environment=prod"

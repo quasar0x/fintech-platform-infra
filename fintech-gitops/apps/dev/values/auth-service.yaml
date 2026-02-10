@@ -1,6 +1,6 @@
 nameOverride: auth-service
 
-replicaCount: 1
+replicaCount: 2
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/auth-service

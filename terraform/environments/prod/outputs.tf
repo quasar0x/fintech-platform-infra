@@ -16,3 +16,12 @@ output "github_actions_oidc_provider_arn" {
 output "loki_s3_bucket" {
   value = aws_s3_bucket.loki.bucket
 }
+
+output "root_domain" {
+  value = var.root_domain
+}
+
+output "api_certificate_arn" {
+  description = "ACM certificate ARN for api.<root_domain>"
+  value       = aws_acm_certificate.api.arn
+}

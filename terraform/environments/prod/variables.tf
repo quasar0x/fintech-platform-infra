@@ -16,3 +16,8 @@ variable "cluster_version" {
   default     = "1.34"
 }
 
+variable "root_domain" {
+  description = "Root domain to create in Route53, e.g. fintech-platform.dev"
+  type        = string
+  default     = "fintech-platform.dev"
+}
