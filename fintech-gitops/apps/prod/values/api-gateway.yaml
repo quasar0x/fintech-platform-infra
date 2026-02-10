@@ -1,6 +1,6 @@
 nameOverride: api-gateway
 
-replicaCount: 1
+replicaCount: 2
 
 image:
   repository: 461508717137.dkr.ecr.us-east-1.amazonaws.com/api-gateway
@@ -19,7 +19,31 @@ env:
   JWT_ISSUER: "fintech-auth"
   JWT_AUDIENCE: "fintech-platform"
 
-# ✅ Option 2: Put JWT_PUBLIC_KEY into a Secret created by Helm
+# ✅ Make ONLY api-gateway public via ALB Ingress
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+
+    # ✅ Enable both listeners
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+
+    # ✅ Attach ACM certificate (paste from terraform output later)
+    alb.ingress.kubernetes.io/certificate-arn: REPLACE_WITH_ACM_CERT_ARN
+
+    # ✅ Redirect all HTTP -> HTTPS
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+
+  hosts:
+    - host: api.fintech-platform.dev
+      paths:
+        - path: /
+  tls: []
+
+# ✅ Put JWT_PUBLIC_KEY into a Secret created by Helm
 secrets:
   enabled: true
   data:
@@ -52,6 +76,6 @@ extraEnv:
   - name: OTEL_EXPORTER_OTLP_PROTOCOL
     value: "grpc"
   - name: OTEL_SERVICE_NAME
-    value: "auth-service"
+    value: "api-gateway"
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "deployment.environment=prod"
