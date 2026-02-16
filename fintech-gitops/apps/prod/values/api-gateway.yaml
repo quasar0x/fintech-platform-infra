@@ -18,6 +18,10 @@ env:
   ENVIRONMENT: "prod"
   JWT_ISSUER: "fintech-auth"
   JWT_AUDIENCE: "fintech-platform"
+  AUTH_SERVICE_URL: "http://auth-service.fintech-prod.svc.cluster.local"
+  PAYMENTS_SERVICE_URL: "http://payments-service.fintech-prod.svc.cluster.local"
+  USER_SERVICE_URL: "http://user-service.fintech-prod.svc.cluster.local"
+  ENABLE_PROXY: "true"
 
 # ✅ Make ONLY api-gateway public via ALB Ingress
 ingress:
